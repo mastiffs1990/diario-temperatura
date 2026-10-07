@@ -11,7 +11,7 @@
 <section class="card"><h2>Archivio episodi</h2><div id="archives"></div></section></main>
 <script>
 const KEY='diario-temperatura-v1', BACKUP='diario-temperatura-backup-v1', ARCH='diario-temperatura-archivio-v1';
-let rows=[], archives=[], editing=null, zoom=1, pan=0, drag=null;
+let rows=[], archives=[], editing=null, zoom=1, pan=0, drag=null, pinch=null;
 const $=id=>document.getElementById(id);
 function parseTemp(v){return Number(String(v??'').replace(',','.'))}
 function normalizeRow(r,i=0){const temp=parseTemp(r.temp??r.temperature??r.temperatura); const raw=r.when??r.date??r.datetime??r.data??r.timestamp; const d=new Date(raw); let med=r.med??r.medicine??r.farmaco??r.medicinale??'Nessuno'; med=String(med??'').trim().toLowerCase(); med=med.includes('nurofen')?'Nurofen':med.includes('tachipirina')?'Tachipirina':med.includes('antibiot')?'Antibiotico':(!med||med==='nessuno'||med==='nessun farmaco'||med==='nessuna'||med==='niente')?'Nessuno':String(r.med??r.medicine??r.farmaco??r.medicinale).trim(); if(!Number.isFinite(temp)||!Number.isFinite(d.getTime()))return null; return {id:String(r.id??('r-'+i+'-'+d.getTime())),temp,when:d.toISOString(),med,note:String(r.note??r.notes??'')};}
@@ -27,7 +27,7 @@ function currentFilter(){return $('filter').value}
 function filtered(){const f=currentFilter(),q=$('search').value.trim().toLowerCase();return rows.filter(r=>(f==='Tutti'||r.med===f)&&(!q||r.note.toLowerCase().includes(q)))}
 function renderList(){const data=filtered();$('count').textContent=`${data.length} di ${rows.length}`; if(!data.length){$('list').innerHTML='<div class="empty">Nessun dato corrisponde al filtro.</div>';return} $('list').innerHTML=data.slice().sort((a,b)=>new Date(b.when)-new Date(a.when)).map(r=>`<div class="row"><div class="temp">${r.temp.toFixed(1)}°</div><div class="meta"><b>${fmtDate(r.when)}</b><span class="pill">${r.med}</span>${r.note?`<small>${escapeHtml(r.note)}</small>`:''}</div><div class="actions"><button class="btn secondary" onclick="editRow('${r.id}')">Modifica</button><button class="btn danger" onclick="deleteRow('${r.id}')">Elimina</button></div></div>`).join('')}
 function escapeHtml(s){return s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function editRow(id){const r=rows.find(x=>x.id===id);if(!r)return;editing=id;$('temp').value=String(r.temp).replace('.',',');$('when').value=new Date(r.when-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);$('med').value=r.med;$('note').value=r.note;$('save').textContent='Salva modifica';$('cancel').classList.remove('hidden');scrollTo({top:0,behavior:'smooth'})}
+function editRow(id){const r=rows.find(x=>x.id===id);if(!r)return;editing=id;$('temp').value=String(r.temp).replace('.',',');$('when').value=new Date(new Date(r.when).getTime()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);$('med').value=r.med;$('note').value=r.note;$('save').textContent='Salva modifica';$('cancel').classList.remove('hidden');scrollTo({top:0,behavior:'smooth'})}
 function deleteRow(id){rows=rows.filter(r=>r.id!==id);saveRows();renderAll()}
 $('save').onclick=()=>{const temp=parseTemp($('temp').value),d=new Date($('when').value),med=$('med').value,note=$('note').value.trim();if(!Number.isFinite(temp)||!Number.isFinite(d.getTime())){alert('Inserisci temperatura e data/ora valide.');return}if(editing){const r=rows.find(x=>x.id===editing);Object.assign(r,{temp,when:d.toISOString(),med,note})}else rows.push({id:'r-'+Date.now(),temp,when:d.toISOString(),med,note});rows.sort((a,b)=>new Date(a.when)-new Date(b.when));saveRows();editing=null;$('save').textContent='Salva misurazione';$('cancel').classList.add('hidden');$('temp').value='';$('note').value='';$('med').value='Nessuno';$('when').value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);renderAll()};
 $('cancel').onclick=()=>{editing=null;$('save').textContent='Salva misurazione';$('cancel').classList.add('hidden');$('temp').value='';$('note').value=''};
@@ -40,7 +40,7 @@ function drawChart(){
  if(!data.length){svg.innerHTML='<text x="360" y="160" text-anchor="middle" fill="#667085">Nessuna temperatura da visualizzare</text>';return}
  const times=data.map(r=>new Date(r.when).getTime()),minT=Math.min(...times),maxT=Math.max(...times);
  const baseSpan=Math.max(3600000,maxT-minT), visibleSpan=Math.max(3600000,baseSpan/zoom);
- const maxPan=(Math.max(baseSpan,visibleSpan)-baseSpan)/(2*baseSpan);
+ const maxPan=Math.max(0,(baseSpan-visibleSpan)/(2*baseSpan));
  pan=Math.max(-maxPan,Math.min(maxPan,pan));
  const center=(minT+maxT)/2+pan*baseSpan, xMin=center-visibleSpan/2,xMax=center+visibleSpan/2;
  const minY=36.5,maxY=40;
@@ -59,6 +59,26 @@ function renderArchives(){if(!archives.length){$('archives').innerHTML='<div cla
 $('archiveBtn').onclick=()=>{if(!rows.length){alert('Non ci sono dati da archiviare.');return}const note=prompt('Note per questo episodio febbrile (facoltative):','');if(note===null)return;archives.push({title:'Episodio '+new Date().toLocaleDateString('it-IT'),createdAt:new Date().toISOString(),note,rows:JSON.parse(JSON.stringify(rows))});localStorage.setItem(ARCH,JSON.stringify(archives));rows=[];saveRows();renderAll()};
 function renderAll(){renderList();drawChart();renderArchives();updateTimers()}
 $('zoomIn').onclick=()=>{zoom=Math.min(12,zoom*1.5);drawChart()};$('zoomOut').onclick=()=>{zoom=Math.max(1,zoom/1.5);drawChart()};$('zoomReset').onclick=()=>{zoom=1;pan=0;drawChart()};
-$('chart').addEventListener('wheel',e=>{e.preventDefault();zoom=e.deltaY<0?Math.min(12,zoom*1.25):Math.max(1,zoom/1.25);drawChart()},{passive:false});$('chart').addEventListener('pointerdown',e=>{drag={x:e.clientX,pan};$('chart').setPointerCapture(e.pointerId)});$('chart').addEventListener('pointermove',e=>{if(!drag)return;pan=drag.pan-(e.clientX-drag.x)/300/zoom;drawChart()});$('chart').addEventListener('pointerup',()=>drag=null);$('chart').addEventListener('pointercancel',()=>drag=null);
+$('chart').addEventListener('wheel',e=>{e.preventDefault();zoom=e.deltaY<0?Math.min(12,zoom*1.25):Math.max(1,zoom/1.25);drawChart()},{passive:false});
+function pointerDistance(a,b){return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)}
+function pointerMid(a,b){return {x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2}}
+$('chart').addEventListener('pointerdown',e=>{
+ if(e.pointerType==='touch'){
+   $('chart').setPointerCapture(e.pointerId);
+   const pts=[...$('chart').getPointerCapture?[]:[]];
+ }
+ if(e.pointerType==='touch' && !pinch){
+   const active=e.currentTarget._pointers||(e.currentTarget._pointers=new Map());active.set(e.pointerId,e);
+   if(active.size===2){const [a,b]=[...active.values()];pinch={distance:pointerDistance(a,b),zoom};drag=null}
+   else drag={x:e.clientX,pan};
+ } else if(e.pointerType!=='touch') {drag={x:e.clientX,pan};$('chart').setPointerCapture(e.pointerId)}
+});
+$('chart').addEventListener('pointermove',e=>{
+ const active=e.currentTarget._pointers;
+ if(e.pointerType==='touch' && active){active.set(e.pointerId,e);if(active.size>=2){const [a,b]=[...active.values()];const d=pointerDistance(a,b);if(pinch&&pinch.distance>0){zoom=Math.max(1,Math.min(12,pinch.zoom*(d/pinch.distance)));drawChart()}return}}
+ if(!drag)return;pan=drag.pan-(e.clientX-drag.x)/720;drawChart();
+});
+function endPointer(e){const active=e.currentTarget._pointers;if(e.pointerType==='touch'&&active){active.delete(e.pointerId);if(active.size<2)pinch=null;if(active.size===1){const [a]=[...active.values()];drag={x:a.clientX,pan}}else drag=null} else drag=null}
+$('chart').addEventListener('pointerup',endPointer);$('chart').addEventListener('pointercancel',endPointer);
 $('when').value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);loadRows();loadArchives();renderAll();setInterval(updateTimers,1000);
 </script></body></html>
