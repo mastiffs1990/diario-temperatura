@@ -43,7 +43,7 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 .history-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.compare-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#778197;margin-top:8px}
 .compare-line{width:18px;height:3px;border-radius:4px;display:inline-block}
 @media(max-width:420px){.app-nav button{font-size:11px;padding:11px 4px}}
-.topline{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.report-metric{background:#f7f8fb;border:1px solid #edf0f4;border-radius:13px;padding:13px;min-width:0}.report-metric strong{display:block;font-size:20px;font-variant-numeric:tabular-nums;margin:4px 0}.report-metric small{color:#778197;font-size:11px}.report-change{font-size:12px;color:#59657a;line-height:1.45}.report-summary{padding:12px;background:#f7f8fb;border-radius:12px;margin-top:12px;font-size:13px;line-height:1.55}.report-med{margin-top:14px}.report-med h3{font-size:14px;margin:0 0 8px}.report-note{font-size:11px;color:#778197;margin-top:12px;line-height:1.45}@media(max-width:420px){.report-grid{grid-template-columns:1fr 1fr}.report-metric{padding:10px}.report-metric strong{font-size:17px}}.topline{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 .notice{padding:12px;border-radius:12px;background:#f0f5ff;color:#334a73;font-size:13px;margin:12px 0}
 .error{background:#fff0ef;color:#943b35}.success{background:#eff8f2;color:#286342}
 @media(max-width:560px){.grid{grid-template-columns:1fr}main{margin-top:12px}.card{padding:16px}}
@@ -77,6 +77,7 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 </div><div class="actions"><button id="saveMeasurement">Salva misurazione</button></div><div id="saveMsg" class="notice hidden"></div></section>
 <section class="card" id="importCard"><h2>Importazione dati</h2><p class="muted">Importa un backup JSON esportato dal browser. I dati già presenti non verranno sovrascritti e gli import ripetuti non creeranno duplicati.</p><div class="import-actions"><input id="legacyFile" type="file" accept="application/json,.json"><button id="importLegacy" disabled>Importa dati verificati</button></div><div id="importSummary" class="import-summary">Seleziona il backup JSON per controllare quante misurazioni e quanti episodi contiene.</div><div id="importMsg" class="notice hidden"></div></section>
 <section class="card" id="timerCard"><div class="topline"><h2>Timer farmaci</h2><span class="tag">Dall'ultima assunzione</span></div><div id="medicationTimers" class="timer-grid"><div class="timer-box">Caricamento timer…</div></div></section>
+<section class="card" id="reportCard"><div class="topline"><h2>Report giornaliero</h2><span class="tag" id="reportDates">In attesa di dati</span></div><div id="dailyReport"><p class="muted">Il report si aggiornerà automaticamente con le nuove misurazioni.</p></div></section>
 <section class="card" id="chartCard"><div class="topline"><h2>Andamento temperatura</h2><span class="tag" id="chartRange">Ultime misurazioni</span></div><div id="temperatureChart"></div></section>
 <section class="card" id="recentCard"><div class="topline"><h2>Misurazioni recenti</h2><span id="count" class="tag">0 registrazioni</span></div><div id="measurements"><p class="muted">Accedi per caricare i dati.</p></div></section>
 <section class="card" id="archiveCard"><h2>Archivia episodio</h2><p class="muted">L'archiviazione crea un episodio storico e collega le misurazioni correnti senza cancellarle.</p><div class="field"><label for="episodeTitle">Titolo episodio</label><input id="episodeTitle" placeholder="Es. Febbre novembre 2026"></div><div class="field" style="margin-top:10px"><label for="episodeNote">Nota episodio</label><textarea id="episodeNote" placeholder="Annotazioni facoltative"></textarea></div><div class="actions"><button id="archive">Archivia misurazioni correnti</button></div></section>
@@ -133,6 +134,59 @@ function drawChart(){
  host.innerHTML='<div class="chart-stats"><div class="chart-stat"><strong>'+Number(latest.temperature).toFixed(1)+'°C</strong><small>Ultima rilevazione</small></div><div class="chart-stat"><strong>'+Math.max(...vals).toFixed(1)+'°C</strong><small>Massima</small></div><div class="chart-stat"><strong>'+Math.min(...vals).toFixed(1)+'°C</strong><small>Minima</small></div></div><div class="chart-wrap"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Andamento delle temperature e farmaci assunti"><defs><linearGradient id="tempFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#e05b50" stop-opacity=".18"/><stop offset="100%" stop-color="#e05b50" stop-opacity="0"/></linearGradient></defs>'+grid+'<path class="chart-area" d="'+areaPath+'"/><path class="chart-line" d="'+linePath+'"/>'+dots+labels+'</svg></div>'+legend+'<div class="muted" style="margin-top:8px">'+rows.length+' rilevazioni · dal '+new Date(rows[0].measured_at).toLocaleDateString("it-IT")+' al '+new Date(latest.measured_at).toLocaleDateString("it-IT")+'</div>';
 }
 function formatElapsed(ms){if(ms<0)ms=0;const total=Math.floor(ms/60000),days=Math.floor(total/1440),hours=Math.floor((total%1440)/60),minutes=total%60;return days>0?days+"g "+hours+"h "+minutes+"m":hours>0?hours+"h "+minutes+"m":minutes+" min"}
+
+function localDayKey(value){const d=new Date(value);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function dayLabel(key){const [y,m,d]=key.split("-");return d+"/"+m+"/"+y}
+function trendText(delta,unit,threshold,directionGood){
+ if(Math.abs(delta)<=threshold)return "Sostanzialmente invariato";
+ const up=delta>0,word=up?"aumentato":"diminuito";
+ return word+" di "+Math.abs(delta).toFixed(1).replace(".",",")+" "+unit;
+}
+function renderDailyReport(){
+ const host=$("dailyReport");if(!host)return;
+ const valid=measurements.filter(r=>r.measured_at&&Number.isFinite(Number(r.temperature)));
+ const days=[...new Set(valid.map(r=>localDayKey(r.measured_at)))].sort();
+ if(!days.length){host.innerHTML='<div class="chart-empty">Registra le prime misurazioni: qui troverai il confronto giorno per giorno.</div>';return}
+ const currentKey=days[days.length-1],previousKey=days.length>1?days[days.length-2]:null;
+ const currentRows=valid.filter(r=>localDayKey(r.measured_at)===currentKey);
+ const previousRows=previousKey?valid.filter(r=>localDayKey(r.measured_at)===previousKey):[];
+ const stats=rows=>({max:Math.max(...rows.map(r=>Number(r.temperature))),min:Math.min(...rows.map(r=>Number(r.temperature))),avg:rows.reduce((s,r)=>s+Number(r.temperature),0)/rows.length,count:rows.length});
+ const cur=stats(currentRows),prev=previousRows.length?stats(previousRows):null;
+ const peak=prev?trendText(cur.max-prev.max,"°C",.05):"Confronto disponibile dal prossimo giorno";
+ const avg=prev?trendText(cur.avg-prev.avg,"°C",.05):"Confronto disponibile dal prossimo giorno";
+ const meds=["Tachipirina","Nurofen"];
+ const medicationStats=meds.map(name=>{
+  const doses=valid.filter(r=>r.medication===name).sort((a,b)=>new Date(a.measured_at)-new Date(b.measured_at));
+  const intervals=[];
+  for(let i=1;i<doses.length;i++){
+   const gap=(new Date(doses[i].measured_at)-new Date(doses[i-1].measured_at))/3600000;
+   if(gap>0&&localDayKey(doses[i].measured_at)===currentKey)intervals.push(gap);
+  }
+  const prevIntervals=[];
+  for(let i=1;i<doses.length;i++){
+   const gap=(new Date(doses[i].measured_at)-new Date(doses[i-1].measured_at))/3600000;
+   if(gap>0&&localDayKey(doses[i].measured_at)===previousKey)prevIntervals.push(gap);
+  }
+  const count=doses.filter(r=>localDayKey(r.measured_at)===currentKey).length;
+  const prevCount=previousKey?doses.filter(r=>localDayKey(r.measured_at)===previousKey).length:0;
+  const mean=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
+  return {name,count,prevCount,mean:mean(intervals),prevMean:mean(prevIntervals)};
+ });
+ const intervalLabel=h=>h===null?"Dati insufficienti":h>=1?Math.floor(h)+"h "+Math.round((h%1)*60)+"m":Math.round(h*60)+" min";
+ const medHtml=medicationStats.map(m=>{
+  let comparison="Non ci sono ancora abbastanza intervalli per confrontare i due giorni.";
+  if(m.mean!==null&&m.prevMean!==null){
+   const delta=m.mean-m.prevMean;
+   comparison=Math.abs(delta)<.25?"Intervallo medio sostanzialmente invariato":delta>0?"Intervallo medio aumentato di "+intervalLabel(Math.abs(delta)):"Intervallo medio diminuito di "+intervalLabel(Math.abs(delta));
+  }else if(m.mean!==null)comparison="Per ora è disponibile solo il dato del giorno più recente.";
+  return '<div class="report-med"><h3>'+m.name+'</h3><div class="report-grid"><div class="report-metric"><small>Assunzioni · '+dayLabel(currentKey)+'</small><strong>'+m.count+'</strong><div class="report-change">'+(previousKey?'Giorno prima: '+m.prevCount:'Primo giorno registrato')+'</div></div><div class="report-metric"><small>Intervallo medio tra dosi</small><strong>'+(m.mean===null?"—":intervalLabel(m.mean))+'</strong><div class="report-change">'+comparison+(m.prevMean!==null?' · precedente: '+intervalLabel(m.prevMean):'')+'</div></div></div></div>';
+ }).join("");
+ let summary=prev
+  ?'Rispetto a '+dayLabel(previousKey)+', il picco è '+(Math.abs(cur.max-prev.max)<=.05?'rimasto sostanzialmente uguale':cur.max>prev.max?'salito di '+(cur.max-prev.max).toFixed(1).replace(".",",")+' °C':'sceso di '+(prev.max-cur.max).toFixed(1).replace(".",",")+' °C')+'. La temperatura media è '+(Math.abs(cur.avg-prev.avg)<=.05?'rimasta sostanzialmente invariata':cur.avg>prev.avg?'aumentata':'diminuita')+'.'
+  :'Il confronto con il giorno precedente sarà disponibile quando avrai registrazioni in un secondo giorno.';
+ host.innerHTML='<div class="muted">Confronto tra '+(prev?dayLabel(previousKey)+' e ':'')+dayLabel(currentKey)+' · '+cur.count+' rilevazioni nel giorno più recente'+(prev?' · '+prev.count+' nel precedente':'')+'</div><div class="report-grid"><div class="report-metric"><small>Picco del giorno</small><strong>'+cur.max.toFixed(1).replace(".",",")+' °C</strong><div class="report-change">'+peak+(prev?' · precedente '+prev.max.toFixed(1).replace(".",",")+' °C':'')+'</div></div><div class="report-metric"><small>Temperatura media</small><strong>'+cur.avg.toFixed(1).replace(".",",")+' °C</strong><div class="report-change">'+avg+(prev?' · precedente '+prev.avg.toFixed(1).replace(".",",")+' °C':'')+'</div></div><div class="report-metric"><small>Minima del giorno</small><strong>'+cur.min.toFixed(1).replace(".",",")+' °C</strong><div class="report-change">'+(prev?'Precedente: '+prev.min.toFixed(1).replace(".",",")+' °C':'Primo giorno registrato')+'</div></div><div class="report-metric"><small>Rilevazioni</small><strong>'+cur.count+'</strong><div class="report-change">'+(prev?'Precedente: '+prev.count:'Nessun confronto ancora')+'</div></div></div><div class="report-summary">'+summary+'</div>'+medHtml+'<div class="report-note">Gli intervalli sono calcolati tra due assunzioni consecutive dello stesso farmaco e attribuiti al giorno della seconda assunzione. Se manca una coppia di dosi nel giorno, il confronto viene indicato come non disponibile. Il report è descrittivo e non fornisce indicazioni sui dosaggi.</div>';
+}
+
 function renderMedicationTimers(){
  const host=$("medicationTimers");if(!host)return;const now=Date.now(),configs=[{name:"Nurofen",cls:"nurofen"},{name:"Tachipirina",cls:"tachipirina"},{name:"Antibiotico",cls:"antibiotico"}];
  host.innerHTML=configs.map(c=>{const last=medicationEvents.find(x=>x.medication===c.name),when=last?new Date(last.measured_at):null;return '<div class="timer-box"><div class="timer-head"><i class="med-marker med-'+c.cls+'"></i>'+c.name+'</div><div class="timer-value">'+(when?formatElapsed(now-when.getTime()):"—")+'</div><div class="timer-detail">'+(when?"Ultima assunzione: "+when.toLocaleString("it-IT"):"Nessuna assunzione registrata")+'</div></div>'}).join("");
@@ -215,7 +269,7 @@ $("importLegacy").onclick=async()=>{
  finally{btn.disabled=false;btn.textContent="Importa dati verificati"}
 };
 function render(){
- drawChart();renderMedicationTimers();
+ drawChart();renderMedicationTimers();renderDailyReport();
  $("count").textContent=measurements.length+" misurazioni attive";
  $("measurements").innerHTML=measurements.length?measurements.map(r=>'<div class="item"><div><div class="temp">'+Number(r.temperature).toFixed(1)+'°C</div><div class="muted">'+new Date(r.measured_at).toLocaleString("it-IT")+' · '+escapeHtml(r.note)+'</div></div><div style="text-align:right"><span class="tag">'+escapeHtml(r.medication)+'</span><div class="actions" style="justify-content:flex-end"><button class="secondary" data-edit="'+r.id+'">Modifica</button><button class="danger" data-delete="'+r.id+'">Elimina</button></div></div></div>').join(""):'<p class="muted">Nessuna misurazione attiva.</p>';
  $("historyCount").textContent=episodes.length+" episodi";
@@ -225,7 +279,7 @@ function render(){
 function setupNavigation(){
  const current=$("page-current"),settings=$("page-settings");
  $("episodesCard").classList.add("hidden");
- ["measurementEntryCard","timerCard","chartCard","recentCard","archiveCard"].forEach(id=>current.appendChild($(id)));
+ ["measurementEntryCard","timerCard","reportCard","chartCard","recentCard","archiveCard"].forEach(id=>current.appendChild($(id)));
  settings.appendChild($("importCard"));
  const key=document.createElement("section");key.className="card";
  key.innerHTML='<h2>Widget e API key</h2><p class="muted">Gestisci la chiave di sola lettura del widget Scriptable. La chiave viene mostrata una sola volta quando la generi.</p><div class="actions"><button id="openWidgetSetup">Gestisci API key widget</button></div>';
