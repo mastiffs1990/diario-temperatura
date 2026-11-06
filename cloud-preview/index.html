@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f6fa"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>Diario temperatura · Cloud</title><link rel="manifest" href="./manifest.json">
+<style>
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#182033;background:#f5f6fa;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0}header{padding:26px max(20px,calc((100vw - 920px)/2));background:#fff;border-bottom:1px solid #e8eaf0}
+main{max-width:920px;margin:24px auto;padding:0 16px 48px}.brand{font-size:13px;color:#69738a;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+h1{font-size:26px;margin:7px 0 4px}h2{font-size:18px;margin:0 0 14px}.muted{color:#778197;font-size:13px}
+.card{background:#fff;border:1px solid #e7eaf0;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 5px 20px #1d2b4408}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:#667085;font-weight:650}
+input,select,textarea{font:inherit;width:100%;padding:12px;border:1px solid #dce1e9;border-radius:11px;background:#fff;color:#182033;min-width:0}
+textarea{min-height:74px;resize:vertical}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+button{font:inherit;border:0;border-radius:11px;padding:11px 15px;background:#182033;color:white;font-weight:650;cursor:pointer}
+button.secondary{background:#eef1f6;color:#29344a}button.danger{background:#fff0ef;color:#a43c36}
+button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
+.item{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:13px 0;border-top:1px solid #edf0f4}
+.temp{font-size:23px;font-weight:750;font-variant-numeric:tabular-nums}.tag{font-size:11px;background:#eef2f8;border-radius:30px;padding:5px 8px;color:#526078}
+.topline{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.notice{padding:12px;border-radius:12px;background:#f0f5ff;color:#334a73;font-size:13px;margin:12px 0}
+.error{background:#fff0ef;color:#943b35}.success{background:#eff8f2;color:#286342}
+@media(max-width:560px){.grid{grid-template-columns:1fr}main{margin-top:12px}.card{padding:16px}}
+</style></head>
+<body>
+<header><div class="brand">Diario temperatura · versione cloud</div><h1>Un diario, sempre sincronizzato.</h1><div class="muted">Ambiente separato di prova · i dati della vecchia app non vengono toccati.</div></header>
+<main>
+<section id="authCard" class="card">
+<h2>Accedi al tuo diario</h2><p class="muted">Crea un account o accedi con email e password. I dati sono privati e associati al tuo account.</p>
+<div class="grid"><div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="nome@email.it"></div><div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Almeno 8 caratteri"></div></div>
+<div class="actions"><button id="signIn">Accedi</button><button class="secondary" id="signUp">Crea account</button></div>
+<div id="authMsg" class="notice hidden"></div>
+</section>
+<section id="app" class="hidden">
+<div class="card"><div class="topline"><div><div class="brand">Account</div><div id="userEmail" style="font-weight:650;margin-top:4px"></div></div><button id="signOut" class="secondary">Esci</button></div><div class="notice">Questa è una nuova app di test: non legge né modifica il localStorage della PWA attuale. Il porting dei dati sarà una fase separata, dopo backup e verifica.</div></div>
+<section class="card"><h2>Nuova misurazione</h2>
+<div class="grid">
+<div class="field"><label for="temperature">Temperatura °C</label><input id="temperature" type="number" min="30" max="45" step=".1" placeholder="38.5"></div>
+<div class="field"><label for="measuredAt">Data e ora</label><input id="measuredAt" type="datetime-local"></div>
+<div class="field"><label for="medication">Farmaco</label><select id="medication"><option>Nessuno</option><option>Nurofen</option><option>Tachipirina</option><option>Antibiotico</option></select></div>
+<div class="field"><label for="note">Nota</label><input id="note" placeholder="Sintomi, osservazioni..."></div>
+</div><div class="actions"><button id="saveMeasurement">Salva misurazione</button></div><div id="saveMsg" class="notice hidden"></div></section>
+<section class="card"><div class="topline"><h2>Misurazioni recenti</h2><span id="count" class="tag">0 registrazioni</span></div><div id="measurements"><p class="muted">Accedi per caricare i dati.</p></div></section>
+<section class="card"><h2>Archivia episodio</h2><p class="muted">L'archiviazione crea un episodio storico e collega le misurazioni correnti senza cancellarle.</p><div class="field"><label for="episodeTitle">Titolo episodio</label><input id="episodeTitle" placeholder="Es. Febbre novembre 2026"></div><div class="field" style="margin-top:10px"><label for="episodeNote">Nota episodio</label><textarea id="episodeNote" placeholder="Annotazioni facoltative"></textarea></div><div class="actions"><button id="archive">Archivia misurazioni correnti</button></div></section>
+<section class="card"><h2>Archivio episodi</h2><div id="episodes"><p class="muted">Nessun episodio archiviato.</p></div></section>
+</section>
+<footer class="muted" style="text-align:center;padding:16px">Preview tecnica · i dati inseriti qui sono dati di test, non ancora quelli della vecchia app.</footer>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL="https://muuihmayqnvzugomfwlq.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_QLIN1H0b8iNL7Rekwl9ZHA_KayB6Mcd";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+let currentUser=null, measurements=[], episodes=[];
+const show=(el,msg,kind="")=>{el.textContent=msg;el.className="notice "+kind};
+const isoNow=()=>{const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);return d.toISOString().slice(0,16)};
+$("measuredAt").value=isoNow();
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function refresh(){
+ const [m,e]=await Promise.all([
+  db.from("fever_measurements").select("*").is("episode_id",null).order("measured_at",{ascending:false}).limit(250),
+  db.from("fever_episodes").select("*").order("archived_at",{ascending:false})
+ ]);
+ if(m.error)throw m.error;if(e.error)throw e.error;
+ measurements=m.data||[];episodes=e.data||[];render();
+}
+function render(){
+ $("count").textContent=measurements.length+" misurazioni attive";
+ $("measurements").innerHTML=measurements.length?measurements.map(r=>'<div class="item"><div><div class="temp">'+Number(r.temperature).toFixed(1)+'°C</div><div class="muted">'+new Date(r.measured_at).toLocaleString("it-IT")+' · '+escapeHtml(r.note)+'</div></div><div style="text-align:right"><span class="tag">'+escapeHtml(r.medication)+'</span><div class="actions" style="justify-content:flex-end"><button class="secondary" data-edit="'+r.id+'">Modifica</button><button class="danger" data-delete="'+r.id+'">Elimina</button></div></div></div>').join(""):'<p class="muted">Nessuna misurazione attiva.</p>';
+ $("episodes").innerHTML=episodes.length?episodes.map(e=>'<div class="item"><div><strong>'+escapeHtml(e.title)+'</strong><div class="muted">'+new Date(e.archived_at).toLocaleString("it-IT")+' · '+escapeHtml(e.note)+'</div></div><span class="tag">Archiviato</span></div>').join(""):'<p class="muted">Nessun episodio archiviato.</p>';
+}
+async function auth(action){
+ const email=$("email").value.trim(),password=$("password").value;
+ if(!email||!password){show($("authMsg"),"Inserisci email e password.","error");return}
+ const result=action==="signup"?await db.auth.signUp({email,password}):await db.auth.signInWithPassword({email,password});
+ if(result.error){show($("authMsg"),result.error.message,"error");return}
+ if(action==="signup"&&!result.data.session){show($("authMsg"),"Account creato. Controlla la tua email per confermare l'indirizzo, poi accedi.","success");return}
+ await boot();
+}
+$("signIn").onclick=()=>auth("signin");$("signUp").onclick=()=>auth("signup");
+$("signOut").onclick=async()=>{await db.auth.signOut();await boot()};
+async function boot(){
+ const {data:{session}}=await db.auth.getSession();currentUser=session?.user||null;
+ $("authCard").classList.toggle("hidden",!!currentUser);$("app").classList.toggle("hidden",!currentUser);
+ if(currentUser){$("userEmail").textContent=currentUser.email||"Account autenticato";try{await refresh()}catch(e){show($("saveMsg"),e.message,"error")}}
+}
+$("saveMeasurement").onclick=async()=>{
+ const t=Number($("temperature").value),when=$("measuredAt").value;
+ if(!Number.isFinite(t)||t<30||t>45||!when){show($("saveMsg"),"Inserisci temperatura e data/ora valide.","error");return}
+ const row={client_id:crypto.randomUUID(),temperature:t,measured_at:new Date(when).toISOString(),medication:$("medication").value,note:$("note").value.trim()};
+ const {error}=await db.from("fever_measurements").insert(row);
+ if(error){show($("saveMsg"),error.message,"error");return}
+ $("temperature").value="";$("note").value="";$("measuredAt").value=isoNow();show($("saveMsg"),"Misurazione salvata e sincronizzata.","success");await refresh();
+};
+$("measurements").addEventListener("click",async ev=>{
+ const del=ev.target.closest("[data-delete]"),edit=ev.target.closest("[data-edit]");
+ if(del){if(!confirm("Eliminare questa misurazione?"))return;const {error}=await db.from("fever_measurements").delete().eq("id",del.dataset.delete);if(error)alert(error.message);else await refresh()}
+ if(edit){const row=measurements.find(x=>x.id===edit.dataset.edit);if(!row)return;const t=prompt("Temperatura °C",row.temperature);if(t===null)return;const n=Number(t);if(!Number.isFinite(n)||n<30||n>45){alert("Temperatura non valida");return}const note=prompt("Nota",row.note);if(note===null)return;const {error}=await db.from("fever_measurements").update({temperature:n,note}).eq("id",row.id);if(error)alert(error.message);else await refresh()}
+});
+$("archive").onclick=async()=>{
+ if(!measurements.length){alert("Non ci sono misurazioni attive da archiviare.");return}
+ const title=$("episodeTitle").value.trim();if(!title){alert("Inserisci il titolo dell'episodio.");return}
+ const episode={client_id:crypto.randomUUID(),title,note:$("episodeNote").value.trim()};
+ const {data,error}=await db.from("fever_episodes").insert(episode).select().single();if(error){alert(error.message);return}
+ const ids=measurements.map(r=>r.id);const {error:updateError}=await db.from("fever_measurements").update({episode_id:data.id}).in("id",ids);
+ if(updateError){await db.from("fever_episodes").delete().eq("id",data.id);alert("Archiviazione non completata: "+updateError.message);return}
+ $("episodeTitle").value="";$("episodeNote").value="";await refresh();alert("Episodio archiviato.");
+};
+db.auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null;boot()});
+boot();
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+</script></body></html>
