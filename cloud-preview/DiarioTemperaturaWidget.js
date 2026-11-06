@@ -31,7 +31,7 @@ function clock(iso) {
   if (!iso || !Number.isFinite(new Date(iso).getTime())) return "Nessuna registrazione";
   return new Date(iso).toLocaleString("it-IT", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
 }
-function timerRow(parent, name, iso, dot) {
+function timerRow(parent, name, iso, dot, extra = "") {
   const row = parent.addStack();
   row.centerAlignContent();
   const marker = row.addText("●");
@@ -42,7 +42,7 @@ function timerRow(parent, name, iso, dot) {
   label.textColor = new Color("#D1D5DB");
   label.font = Font.mediumSystemFont(10);
   row.addSpacer();
-  const value = row.addText(iso && Number.isFinite(new Date(iso).getTime()) ? clock(iso) + " · " + elapsed(iso) : "—");
+  const value = row.addText(iso && Number.isFinite(new Date(iso).getTime()) ? clock(iso) + " · " + elapsed(iso) + extra : "—");
   value.textColor = new Color("#FFFFFF");
   value.font = Font.semiboldSystemFont(10);
 }
@@ -91,7 +91,7 @@ try {
       widget.addSpacer(4);
       timerRow(widget, "Tachipirina", data.timers?.Tachipirina, "#FBBF24");
       widget.addSpacer(4);
-      timerRow(widget, "Antibiotico", data.timers?.Antibiotico, "#C084FC");
+      timerRow(widget, "Antibiotico", data.timers?.Antibiotico, "#C084FC", data.antibiotic ? " · " + data.antibiotic.completedDays + "g" + (data.antibiotic.remainingDoses ? " +" + data.antibiotic.remainingDoses + "/2" : "") : "");
     } else if (config.widgetFamily === "accessoryCircular") {
       widget.addSpacer(4);
       text(widget, latest ? Number(latest.temperature).toFixed(1) + "°" : "—", 17, "#FFFFFF", true);
