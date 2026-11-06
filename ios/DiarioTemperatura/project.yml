@@ -16,8 +16,20 @@ targets:
       - path: Sources/Shared
     info:
       path: Sources/App/Info.plist
+      properties:
+        BGTaskSchedulerPermittedIdentifiers:
+          - it.diariotemperatura.app.refresh
+        UIBackgroundModes:
+          - fetch
+        CFBundleURLTypes:
+          - CFBundleURLName: it.diariotemperatura.app
+            CFBundleURLSchemes:
+              - diariotemperatura
     entitlements:
       path: Sources/App/DiarioTemperatura.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.it.diariotemperatura.shared
     dependencies:
       - package: Supabase
         product: Supabase
@@ -28,7 +40,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: it.diariotemperatura.app
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1,2"
-        GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_KEY_CFBundleDisplayName: "Diario Temperatura"
   DiarioTemperaturaWidget:
@@ -39,13 +50,18 @@ targets:
       - path: Sources/Shared
     info:
       path: Sources/Widget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
       path: Sources/Widget/DiarioTemperaturaWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.it.diariotemperatura.shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.diariotemperatura.app.widget
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1,2"
         APPLICATION_EXTENSION_API_ONLY: YES
-        GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
