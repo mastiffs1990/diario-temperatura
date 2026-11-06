@@ -28,6 +28,8 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 .chart-legend{display:flex;gap:14px;flex-wrap:wrap;color:#778197;font-size:12px;margin-top:8px}
 .chart-legend span{display:inline-flex;align-items:center;gap:6px}
 .chart-key{width:9px;height:9px;border-radius:50%;background:#e05b50;display:inline-block}
+.timer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.timer-box{background:#f7f8fb;border:1px solid #edf0f4;border-radius:14px;padding:14px;min-width:0}.timer-head{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px}.timer-value{font-size:clamp(17px,3vw,23px);font-weight:800;font-variant-numeric:tabular-nums;margin:10px 0 4px}.timer-detail{font-size:11px;color:#778197;line-height:1.4}.med-marker{display:inline-block;width:9px;height:9px;flex:none}.med-nurofen{background:#2878d0;border-radius:50%}.med-tachipirina{background:#e5a12b;transform:rotate(45deg);border-radius:1px}.med-antibiotico{background:#8b62c8;clip-path:polygon(50% 0,0 100%,100% 100%)}.chart-med-marker{stroke:#fff;stroke-width:1.5}
+@media(max-width:520px){.timer-grid{grid-template-columns:1fr}.timer-box{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px}.timer-head{grid-column:1}.timer-value{grid-column:2;grid-row:1/3;margin:0}.timer-detail{grid-column:1}}
 .chart-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 4px}
 .chart-stat{background:#f7f8fb;border-radius:12px;padding:10px 12px;min-width:0}
 .chart-stat strong{display:block;font-size:19px;font-variant-numeric:tabular-nums}
@@ -57,6 +59,7 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 <div class="field"><label for="medication">Farmaco</label><select id="medication"><option>Nessuno</option><option>Nurofen</option><option>Tachipirina</option><option>Antibiotico</option></select></div>
 <div class="field"><label for="note">Nota</label><input id="note" placeholder="Sintomi, osservazioni..."></div>
 </div><div class="actions"><button id="saveMeasurement">Salva misurazione</button></div><div id="saveMsg" class="notice hidden"></div></section>
+<section class="card"><div class="topline"><h2>Timer farmaci</h2><span class="tag">Dall'ultima assunzione</span></div><div id="medicationTimers" class="timer-grid"><div class="timer-box">Caricamento timer…</div></div></section>
 <section class="card" id="chartCard"><div class="topline"><h2>Andamento temperatura</h2><span class="tag" id="chartRange">Ultime misurazioni</span></div><div id="temperatureChart"></div></section>
 <section class="card"><div class="topline"><h2>Misurazioni recenti</h2><span id="count" class="tag">0 registrazioni</span></div><div id="measurements"><p class="muted">Accedi per caricare i dati.</p></div></section>
 <section class="card"><h2>Archivia episodio</h2><p class="muted">L'archiviazione crea un episodio storico e collega le misurazioni correnti senza cancellarle.</p><div class="field"><label for="episodeTitle">Titolo episodio</label><input id="episodeTitle" placeholder="Es. Febbre novembre 2026"></div><div class="field" style="margin-top:10px"><label for="episodeNote">Nota episodio</label><textarea id="episodeNote" placeholder="Annotazioni facoltative"></textarea></div><div class="actions"><button id="archive">Archivia misurazioni correnti</button></div></section>
@@ -70,43 +73,53 @@ const SUPABASE_URL="https://muuihmayqnvzugomfwlq.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_QLIN1H0b8iNL7Rekwl9ZHA_KayB6Mcd";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let currentUser=null, measurements=[], episodes=[];
+let currentUser=null, measurements=[], episodes=[], medicationEvents=[];
+let timerInterval=null;
 const show=(el,msg,kind="")=>{el.textContent=msg;el.className="notice "+kind};
 const isoNow=()=>{const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);return d.toISOString().slice(0,16)};
 $("measuredAt").value=isoNow();
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function refresh(){
- const [m,e]=await Promise.all([
+ const [m,e,t]=await Promise.all([
   db.from("fever_measurements").select("*").is("episode_id",null).order("measured_at",{ascending:false}).limit(250),
-  db.from("fever_episodes").select("*").order("archived_at",{ascending:false})
+  db.from("fever_episodes").select("*").order("archived_at",{ascending:false}),
+  db.from("fever_measurements").select("medication,measured_at").in("medication",["Nurofen","Tachipirina","Antibiotico"]).order("measured_at",{ascending:false}).limit(2000)
  ]);
- if(m.error)throw m.error;if(e.error)throw e.error;
- measurements=m.data||[];episodes=e.data||[];render();
+ if(m.error)throw m.error;if(e.error)throw e.error;if(t.error)throw t.error;
+ measurements=m.data||[];episodes=e.data||[];medicationEvents=t.data||[];render();
+}
+function medicationClass(name){return name==="Nurofen"?"nurofen":name==="Tachipirina"?"tachipirina":name==="Antibiotico"?"antibiotico":""}
+function drawMedicationMarker(name,cx,cy){
+ const cls=medicationClass(name);if(!cls)return "";
+ if(cls==="nurofen")return '<circle class="chart-med-marker" cx="'+cx+'" cy="'+cy+'" r="6" fill="#2878d0"><title>Nurofen</title></circle>';
+ if(cls==="tachipirina")return '<rect class="chart-med-marker" x="'+(cx-5)+'" y="'+(cy-5)+'" width="10" height="10" rx="1" transform="rotate(45 '+cx+' '+cy+')" fill="#e5a12b"><title>Tachipirina</title></rect>';
+ return '<path class="chart-med-marker" d="M '+cx+' '+(cy-6)+' L '+(cx-6)+' '+(cy+5)+' L '+(cx+6)+' '+(cy+5)+' Z" fill="#8b62c8"><title>Antibiotico</title></path>';
 }
 function drawChart(){
- const host=$("temperatureChart");
- if(!host)return;
+ const host=$("temperatureChart");if(!host)return;
  const rows=[...measurements].filter(r=>Number.isFinite(Number(r.temperature))&&r.measured_at).sort((a,b)=>new Date(a.measured_at)-new Date(b.measured_at));
  if(!rows.length){host.innerHTML='<div class="chart-empty">Nessuna misurazione da visualizzare. Aggiungi una temperatura per iniziare il grafico.</div>';return}
- const vals=rows.map(r=>Number(r.temperature));
- let lo=Math.min(36.5,Math.floor(Math.min(...vals)*2)/2);
- let hi=Math.max(40,Math.ceil(Math.max(...vals)*2)/2);
- if(hi-lo<1)hi=lo+1;
+ const vals=rows.map(r=>Number(r.temperature));let lo=Math.min(36.5,Math.floor(Math.min(...vals)*2)/2),hi=Math.max(40,Math.ceil(Math.max(...vals)*2)/2);if(hi-lo<1)hi=lo+1;
  const W=720,H=300,L=58,R=18,T=22,B=48,pw=W-L-R,ph=H-T-B;
- const x=i=>L+(rows.length===1?pw/2:i/(rows.length-1)*pw);
- const y=v=>T+(hi-v)/(hi-lo)*ph;
+ const x=i=>L+(rows.length===1?pw/2:i/(rows.length-1)*pw),y=v=>T+(hi-v)/(hi-lo)*ph;
  const ticks=[];for(let v=Math.ceil(lo*2)/2;v<=hi+.001;v+=.5)ticks.push(Number(v.toFixed(1)));
  const grid=ticks.map(v=>'<line class="chart-grid" x1="'+L+'" y1="'+y(v)+'" x2="'+(W-R)+'" y2="'+y(v)+'"/><text class="chart-axis" x="'+(L-10)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v.toFixed(1)+'°</text>').join("");
- const points=rows.map((r,i)=>x(i).toFixed(1)+','+y(Number(r.temperature)).toFixed(1)).join(" ");
- const area=points+' '+(W-R)+','+(T+ph)+' '+L+','+(T+ph);
- const dots=rows.map((r,i)=>'<circle class="chart-dot" cx="'+x(i).toFixed(1)+'" cy="'+y(Number(r.temperature)).toFixed(1)+'" r="'+(rows.length>100?2.2:4)+'"><title>'+Number(r.temperature).toFixed(1)+'°C · '+new Date(r.measured_at).toLocaleString("it-IT")+'</title></circle>').join("");
+ const pts=rows.map((r,i)=>({x:x(i),y:y(Number(r.temperature)),row:r}));let linePath="M "+pts[0].x+" "+pts[0].y;
+ for(let i=0;i<pts.length-1;i++){const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];const c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6,c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;linePath+=" C "+c1x+" "+c1y+" "+c2x+" "+c2y+" "+p2.x+" "+p2.y}
+ const areaPath=linePath+" L "+(W-R)+" "+(T+ph)+" L "+L+" "+(T+ph)+" Z";
+ const dots=pts.map(p=>'<circle class="chart-dot" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(rows.length>100?2.2:3.5)+'"><title>'+Number(p.row.temperature).toFixed(1)+'°C · '+new Date(p.row.measured_at).toLocaleString("it-IT")+'</title></circle>'+drawMedicationMarker(p.row.medication,p.x.toFixed(1),p.y.toFixed(1))).join("");
  const indices=[...new Set([0,Math.floor((rows.length-1)/3),Math.floor(2*(rows.length-1)/3),rows.length-1])];
  const labels=indices.map(i=>'<text class="chart-axis" x="'+x(i)+'" y="'+(H-16)+'" text-anchor="'+(i===0?"start":i===rows.length-1?"end":"middle")+'">'+new Date(rows[i].measured_at).toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit"})+'</text>').join("");
- const latest=rows[rows.length-1];
- host.innerHTML='<div class="chart-stats"><div class="chart-stat"><strong>'+Number(latest.temperature).toFixed(1)+'°C</strong><small>Ultima rilevazione</small></div><div class="chart-stat"><strong>'+Math.max(...vals).toFixed(1)+'°C</strong><small>Massima</small></div><div class="chart-stat"><strong>'+Math.min(...vals).toFixed(1)+'°C</strong><small>Minima</small></div></div><div class="chart-wrap"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Andamento delle temperature nel tempo"><defs><linearGradient id="tempFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#e05b50" stop-opacity=".2"/><stop offset="100%" stop-color="#e05b50" stop-opacity="0"/></linearGradient></defs>'+grid+'<polygon class="chart-area" points="'+area+'"/><polyline class="chart-line" points="'+points+'"/>'+dots+labels+'</svg></div><div class="chart-legend"><span><i class="chart-key"></i>Temperatura (°C)</span><span>'+rows.length+' rilevazioni · dal '+new Date(rows[0].measured_at).toLocaleDateString("it-IT")+' al '+new Date(latest.measured_at).toLocaleDateString("it-IT")+'</span></div>';
+ const latest=rows[rows.length-1],legend='<div class="chart-legend"><span><i class="chart-key"></i>Temperatura</span><span><i class="med-marker med-nurofen"></i>Nurofen</span><span><i class="med-marker med-tachipirina"></i>Tachipirina</span><span><i class="med-marker med-antibiotico"></i>Antibiotico</span></div>';
+ host.innerHTML='<div class="chart-stats"><div class="chart-stat"><strong>'+Number(latest.temperature).toFixed(1)+'°C</strong><small>Ultima rilevazione</small></div><div class="chart-stat"><strong>'+Math.max(...vals).toFixed(1)+'°C</strong><small>Massima</small></div><div class="chart-stat"><strong>'+Math.min(...vals).toFixed(1)+'°C</strong><small>Minima</small></div></div><div class="chart-wrap"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Andamento delle temperature e farmaci assunti"><defs><linearGradient id="tempFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#e05b50" stop-opacity=".18"/><stop offset="100%" stop-color="#e05b50" stop-opacity="0"/></linearGradient></defs>'+grid+'<path class="chart-area" d="'+areaPath+'"/><path class="chart-line" d="'+linePath+'"/>'+dots+labels+'</svg></div>'+legend+'<div class="muted" style="margin-top:8px">'+rows.length+' rilevazioni · dal '+new Date(rows[0].measured_at).toLocaleDateString("it-IT")+' al '+new Date(latest.measured_at).toLocaleDateString("it-IT")+'</div>';
+}
+function formatElapsed(ms){if(ms<0)ms=0;const total=Math.floor(ms/60000),days=Math.floor(total/1440),hours=Math.floor((total%1440)/60),minutes=total%60;return days>0?days+"g "+hours+"h "+minutes+"m":hours>0?hours+"h "+minutes+"m":minutes+" min"}
+function renderMedicationTimers(){
+ const host=$("medicationTimers");if(!host)return;const now=Date.now(),configs=[{name:"Nurofen",cls:"nurofen"},{name:"Tachipirina",cls:"tachipirina"},{name:"Antibiotico",cls:"antibiotico"}];
+ host.innerHTML=configs.map(c=>{const last=medicationEvents.find(x=>x.medication===c.name),when=last?new Date(last.measured_at):null;return '<div class="timer-box"><div class="timer-head"><i class="med-marker med-'+c.cls+'"></i>'+c.name+'</div><div class="timer-value">'+(when?formatElapsed(now-when.getTime()):"—")+'</div><div class="timer-detail">'+(when?"Ultima assunzione: "+when.toLocaleString("it-IT"):"Nessuna assunzione registrata")+'</div></div>'}).join("");
 }
 function render(){
- drawChart();
+ drawChart();renderMedicationTimers();
  $("count").textContent=measurements.length+" misurazioni attive";
  $("measurements").innerHTML=measurements.length?measurements.map(r=>'<div class="item"><div><div class="temp">'+Number(r.temperature).toFixed(1)+'°C</div><div class="muted">'+new Date(r.measured_at).toLocaleString("it-IT")+' · '+escapeHtml(r.note)+'</div></div><div style="text-align:right"><span class="tag">'+escapeHtml(r.medication)+'</span><div class="actions" style="justify-content:flex-end"><button class="secondary" data-edit="'+r.id+'">Modifica</button><button class="danger" data-delete="'+r.id+'">Elimina</button></div></div></div>').join(""):'<p class="muted">Nessuna misurazione attiva.</p>';
  $("episodes").innerHTML=episodes.length?episodes.map(e=>'<div class="item"><div><strong>'+escapeHtml(e.title)+'</strong><div class="muted">'+new Date(e.archived_at).toLocaleString("it-IT")+' · '+escapeHtml(e.note)+'</div></div><span class="tag">Archiviato</span></div>').join(""):'<p class="muted">Nessun episodio archiviato.</p>';
@@ -150,5 +163,6 @@ $("archive").onclick=async()=>{
 };
 db.auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null;boot()});
 boot();
+if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(renderMedicationTimers,30000);
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 </script></body></html>
