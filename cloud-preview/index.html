@@ -52,7 +52,7 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 <div id="authMsg" class="notice hidden"></div>
 </section>
 <section id="app" class="hidden">
-<div class="card"><div class="topline"><div><div class="brand">Account</div><div id="userEmail" style="font-weight:650;margin-top:4px"></div></div><button id="signOut" class="secondary">Esci</button></div><div class="notice">Questa è una nuova app di test: non legge né modifica il localStorage della PWA attuale. Il porting dei dati sarà una fase separata, dopo backup e verifica.</div></div>
+<div class="card"><div class="topline"><div><div class="brand">Account</div><div id="userEmail" style="font-weight:650;margin-top:4px"></div></div><button id="signOut" class="secondary">Esci</button></div><div class="notice">Questa è una nuova app di test: non legge né modifica il localStorage della PWA attuale. Il porting dei dati sarà una fase separata, dopo backup e verifica.</div><div class="actions"><button id="widgetSetup" class="secondary">Configura widget iPhone</button></div></div>
 <section class="card"><h2>Nuova misurazione</h2>
 <div class="grid">
 <div class="field"><label for="temperature">Temperatura °C</label><input id="temperature" type="number" min="30" max="45" step=".1" placeholder="38.5"></div>
@@ -215,6 +215,7 @@ async function auth(action){
 }
 $("signIn").onclick=()=>auth("signin");$("signUp").onclick=()=>auth("signup");
 $("signOut").onclick=async()=>{await db.auth.signOut();await boot()};
+$("widgetSetup").onclick=()=>{window.location.href="./widget-setup.html"};
 async function boot(){
  const {data:{session}}=await db.auth.getSession();currentUser=session?.user||null;
  $("authCard").classList.toggle("hidden",!!currentUser);$("app").classList.toggle("hidden",!currentUser);
