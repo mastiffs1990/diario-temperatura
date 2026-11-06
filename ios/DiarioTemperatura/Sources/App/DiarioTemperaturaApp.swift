@@ -3,6 +3,7 @@ import Supabase
 import WidgetKit
 import BackgroundTasks
 import UIKit
+import Combine
 
 private enum CloudConfig {
     static let url = URL(string: "https://muuihmayqnvzugomfwlq.supabase.co")!
@@ -63,8 +64,8 @@ final class AppModel: ObservableObject {
     }
 
     func refresh() async {
-        guard isSignedIn || (try? await client.auth.session) != nil else { return }
         do {
+            _ = try await client.auth.session
             async let latest = latestMeasurement(medication: nil)
             async let nurofen = latestMeasurement(medication: "Nurofen")
             async let tachipirina = latestMeasurement(medication: "Tachipirina")
@@ -81,24 +82,33 @@ final class AppModel: ObservableObject {
             )
             next.save()
             snapshot = next
+            isSignedIn = true
             status = "Sincronizzato alle \(Date().formatted(date: .omitted, time: .shortened))."
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
             status = "Sincronizzazione non riuscita: \(error.localizedDescription)"
+            isSignedIn = false
         }
     }
 
     private func latestMeasurement(medication: String?) async throws -> CloudMeasurement? {
-        var query = client.from("fever_measurements")
-            .select("temperature,measured_at,medication")
+        let rows: [CloudMeasurement]
         if let medication {
-            query = query.eq("medication", value: medication)
+            rows = try await client.from("fever_measurements")
+                .select("temperature,measured_at,medication")
+                .eq("medication", value: medication)
+                .order("measured_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+        } else {
+            rows = try await client.from("fever_measurements")
+                .select("temperature,measured_at,medication")
+                .order("measured_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
         }
-        let rows: [CloudMeasurement] = try await query
-            .order("measured_at", ascending: false)
-            .limit(1)
-            .execute()
-            .value
         return rows.first
     }
 
