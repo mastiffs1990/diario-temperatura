@@ -59,6 +59,15 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 </section>
 <section id="app" class="hidden">
 <div class="card"><div class="topline"><div><div class="brand">Account</div><div id="userEmail" style="font-weight:650;margin-top:4px"></div></div><button id="signOut" class="secondary">Esci</button></div><div class="notice">Questa è una nuova app di test: non legge né modifica il localStorage della PWA attuale. Il porting dei dati sarà una fase separata, dopo backup e verifica.</div></div>
+<nav class="app-nav" aria-label="Sezioni diario">
+<button class="active" data-page="current">In corso</button><button data-page="history">Episodi passati</button><button data-page="settings">Import e API key</button>
+</nav>
+<div id="page-current" class="page-panel"></div>
+<div id="page-history" class="page-panel hidden">
+<section class="card"><div class="topline"><h2>Episodi precedenti</h2><span class="tag" id="historyCount">0 episodi</span></div><p class="muted">Apri un episodio per rivedere le misurazioni e confrontare il grafico con quello attuale.</p><div id="historyEpisodes"></div></section>
+<section class="card hidden" id="episodeDetailCard"><div class="topline"><h2 id="historyTitle">Dettaglio episodio</h2><button class="secondary" id="closeHistory">Chiudi</button></div><div class="muted" id="historyMeta"></div><div id="historyChart"></div><div class="history-actions"><button id="compareEpisode">Confronta con episodio attuale</button></div><div id="comparisonChart" class="hidden"></div><div id="historyRows"></div></section>
+</div>
+<div id="page-settings" class="page-panel hidden"></div>
 <section class="card" id="measurementEntryCard"><h2>Nuova misurazione</h2>
 <div class="grid">
 <div class="field"><label for="temperature">Temperatura °C</label><input id="temperature" type="number" min="30" max="45" step=".1" placeholder="38.5"></div>
@@ -215,6 +224,7 @@ function render(){
 
 function setupNavigation(){
  const current=$("page-current"),settings=$("page-settings");
+ $("episodesCard").classList.add("hidden");
  ["measurementEntryCard","timerCard","chartCard","recentCard","archiveCard"].forEach(id=>current.appendChild($(id)));
  settings.appendChild($("importCard"));
  const key=document.createElement("section");key.className="card";
