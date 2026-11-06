@@ -61,7 +61,7 @@ try {
   } else {
     const req = new Request(API_URL);
     req.method = "GET";
-    req.headers = { "Authorization": "Bearer " + TOKEN, "apikey": "sb_publishable_QLIN1H0b8iNL7Rekw9lZHA_KayB6Mcd" };
+    req.headers = { "Authorization": "Bearer " + TOKEN, "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dWlobWF5cW52enVnb21md2xxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5NjU1ODIsImV4cCI6MjEwOTU0MTU4Mn0.WxV8SYkDtuarKZjClTwF6VZ49vto2Gy4ZyZP7dV8Ro8" };
     req.timeoutInterval = 15;
     const data = await req.loadJSON();
     if (data.error) throw new Error(data.error);
