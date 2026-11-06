@@ -1,9 +1,17 @@
 {
-  "name": "Diario temperatura Cloud",
-  "short_name": "Diario Cloud",
+  "name": "Diario temperatura",
+  "short_name": "Diario",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f5f6fa",
-  "theme_color": "#f5f6fa",
-  "icons": []
+  "theme_color": "#1689df",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
