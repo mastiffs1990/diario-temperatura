@@ -4,6 +4,7 @@
 .grid{display:grid;grid-template-columns:1fr;gap:10px}.grid>div{min-width:0}
 @media(min-width:561px){.grid{grid-template-columns:1fr 1fr}.row{grid-template-columns:72px 1fr auto}.row .actions{grid-column:auto;margin-top:0}.row .actions .btn{flex:none}}
 </style></head><body><main><div class="head"><div class="brand">🌡️ Diario temperatura <span class="ver">v1.0.2</span></div></div>
+<section class="card"><h2>Backup e porting</h2><p class="muted">Crea una copia JSON delle misurazioni e degli episodi archiviati. L'esportazione legge i dati senza modificarli.</p><button class="btn secondary" id="exportBackup" style="width:100%">Esporta backup JSON</button><div id="exportStatus" class="muted" style="margin-top:8px" aria-live="polite"></div></section>
 <section class="card"><h2>Registra una misurazione</h2><div class="grid"><div><label>Temperatura</label><input id="temp" type="number" step="0.1" inputmode="decimal" placeholder="es. 38,2"></div><div><label>Data e ora</label><input id="when" type="datetime-local"></div><div><label>Farmaco</label><select id="med"><option>Nessuno</option><option>Nurofen</option><option>Tachipirina</option><option>Antibiotico</option></select></div><div><label>Nota</label><input id="note" placeholder="Facoltativa"></div></div><div class="actions"><button class="btn" id="save">Salva misurazione</button><button class="btn secondary hidden" id="cancel">Annulla modifica</button></div></section>
 <section class="card"><h2>Timer farmaci</h2><div class="timers"><div class="timer"><b>Nurofen</b><strong id="tN">—</strong><small id="dN">Nessuna somministrazione</small></div><div class="timer"><b>Tachipirina</b><strong id="tT">—</strong><small id="dT">Nessuna somministrazione</small></div><div class="timer"><b>Antibiotico</b><strong id="tA">—</strong><small id="dA">Nessuna somministrazione</small><small id="cA">0 somministrazioni · 0 giorni + 0 dosi</small></div></div></section>
 <section class="card"><div class="listhead"><h2>Grafico</h2><div class="charttools"><button id="zoomOut">−</button><button id="zoomReset">100%</button><button id="zoomIn">+</button></div></div><div class="chartwrap"><svg id="chart" viewBox="0 0 720 300" width="100%" height="300" role="img" aria-label="Grafico temperatura"></svg></div><div class="muted" style="margin-top:7px">Trascina il grafico per spostarti. Pinch/rotella per zoomare. Tocca un punto o un’icona per i dettagli.</div></section>
@@ -80,5 +81,37 @@ $('chart').addEventListener('pointermove',e=>{
 });
 function endPointer(e){const active=e.currentTarget._pointers;if(e.pointerType==='touch'&&active){active.delete(e.pointerId);if(active.size<2)pinch=null;if(active.size===1){const [a]=[...active.values()];drag={x:a.clientX,pan}}else drag=null} else drag=null}
 $('chart').addEventListener('pointerup',endPointer);$('chart').addEventListener('pointercancel',endPointer);
+
+function parseStoredJson(key,fallback){const raw=localStorage.getItem(key);if(raw===null)return {raw:null,value:fallback};try{return {raw,value:JSON.parse(raw)}}catch(e){throw new Error('Il dato '+key+' non è un JSON valido. Nessun file è stato creato.')}} 
+function countRows(value){return Array.isArray(value)?value.length:(value&&Array.isArray(value.rows)?value.rows.length:0)}
+$('exportBackup').onclick=async()=>{
+ const btn=$('exportBackup'),status=$('exportStatus');btn.disabled=true;btn.textContent='Preparazione backup…';status.textContent='';
+ try{
+  const active=parseStoredJson(KEY,[]),backup=parseStoredJson(BACKUP,[]),arch=parseStoredJson(ARCH,[]);
+  const activeRows=Array.isArray(active.value)?active.value:(Array.isArray(backup.value)?backup.value:[]);
+  const archives=Array.isArray(arch.value)?arch.value:[];
+  if(!Array.isArray(active.value)&&!Array.isArray(backup.value))throw new Error('Non trovo un archivio valido di misurazioni attive o di backup.');
+  if(!Array.isArray(arch.value))throw new Error('Il formato degli episodi archiviati non è riconosciuto. Nessun file è stato creato.');
+  const payload={
+   format:'diario-temperatura-export',version:1,exportedAt:new Date().toISOString(),
+   activeRows,archives,
+   sourceSnapshot:{activeKey:KEY,activeRaw:active.raw,backupKey:BACKUP,backupRaw:backup.raw,archivesKey:ARCH,archivesRaw:arch.raw}
+  };
+  const json=JSON.stringify(payload,null,2);
+  const filename='diario-temperatura-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  const file=new File([json],filename,{type:'application/json'});
+  const discrepancy=active.raw!==null&&backup.raw!==null&&JSON.stringify(active.value)!==JSON.stringify(backup.value);
+  status.textContent='Backup pronto: '+activeRows.length+' misurazioni attive e '+archives.reduce((n,a)=>n+(Array.isArray(a?.rows)?a.rows.length:0),0)+' misurazioni archiviate in '+archives.length+' episodi.'+(discrepancy?' Nota: archivio principale e copia di sicurezza non coincidono; entrambi sono conservati nel file.':'');
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+   await navigator.share({files:[file],title:'Backup Diario temperatura',text:'Salva questo file in File per conservarne una copia.'});
+   status.textContent+=' Seleziona “Salva su File” nel menu di condivisione per conservare il backup.';
+  }else{
+   const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=filename;a.style.display='none';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+   status.textContent+=' Il download è stato avviato: salva il file nell’app File.';
+  }
+ }catch(err){status.textContent=err?.message||'Esportazione non riuscita.'}
+ finally{btn.disabled=false;btn.textContent='Esporta backup JSON'}
+};
+
 $('when').value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);loadRows();loadArchives();renderAll();setInterval(updateTimers,1000);
 </script></body></html>
