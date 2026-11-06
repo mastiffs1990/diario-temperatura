@@ -100,9 +100,9 @@ async function refresh(){
  const [m,e,n,t,a]=await Promise.all([
   db.from("fever_measurements").select("*").is("episode_id",null).order("measured_at",{ascending:false}).limit(250),
   db.from("fever_episodes").select("*").order("archived_at",{ascending:false}),
-  db.from("fever_measurements").select("medication,measured_at").eq("medication","Nurofen").order("measured_at",{ascending:false}).limit(1),
-  db.from("fever_measurements").select("medication,measured_at").eq("medication","Tachipirina").order("measured_at",{ascending:false}).limit(1),
-  db.from("fever_measurements").select("medication,measured_at").eq("medication","Antibiotico").order("measured_at",{ascending:false}).limit(1)
+  db.from("fever_measurements").select("medication,measured_at").is("episode_id",null).eq("medication","Nurofen").order("measured_at",{ascending:false}).limit(1),
+  db.from("fever_measurements").select("medication,measured_at").is("episode_id",null).eq("medication","Tachipirina").order("measured_at",{ascending:false}).limit(1),
+  db.from("fever_measurements").select("medication,measured_at").is("episode_id",null).eq("medication","Antibiotico").order("measured_at",{ascending:false}).limit(1)
  ]);
  if(m.error)throw m.error;if(e.error)throw e.error;if(n.error)throw n.error;if(t.error)throw t.error;if(a.error)throw a.error;
  measurements=m.data||[];episodes=e.data||[];medicationEvents=[...(n.data||[]),...(t.data||[]),...(a.data||[])].sort((x,y)=>new Date(y.measured_at)-new Date(x.measured_at));render();
