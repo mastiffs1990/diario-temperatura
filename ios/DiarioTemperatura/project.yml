@@ -13,6 +13,9 @@ targets:
     platform: iOS
     sources:
       - path: Sources/App
+        excludes:
+          - Info.plist
+          - DiarioTemperatura.entitlements
       - path: Sources/Shared
     info:
       path: Sources/App/Info.plist
@@ -47,6 +50,9 @@ targets:
     platform: iOS
     sources:
       - path: Sources/Widget
+        excludes:
+          - Info.plist
+          - DiarioTemperaturaWidget.entitlements
       - path: Sources/Shared
     info:
       path: Sources/Widget/Info.plist
@@ -61,7 +67,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.diariotemperatura.app.widget
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES
