@@ -66,8 +66,14 @@ struct TemperatureWidgetView: View {
             Text(snapshot.measuredAt?.widgetDate ?? "Nessuna rilevazione")
                 .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2)
             Spacer(minLength: 0)
-            Text("T: \(snapshot.tachipirinaAt?.elapsed ?? "—")  N: \(snapshot.nurofenAt?.elapsed ?? "—")")
-                .font(.system(size: 9, weight: .medium, design: .rounded)).lineLimit(1).minimumScaleFactor(0.7)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Nurofen: \(snapshot.nurofenAt?.elapsed ?? "—")")
+                Text("Tachipirina: \(snapshot.tachipirinaAt?.elapsed ?? "—")")
+                Text("Antibiotico: \(snapshot.antibioticoAt?.elapsed ?? "—")")
+            }
+            .font(.system(size: 8, weight: .medium, design: .rounded))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
         }
         .padding()
     }
