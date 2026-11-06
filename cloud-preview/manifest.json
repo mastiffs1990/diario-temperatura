@@ -1,0 +1,9 @@
+{
+  "name": "Diario temperatura Cloud",
+  "short_name": "Diario Cloud",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f6fa",
+  "theme_color": "#f5f6fa",
+  "icons": []
+}
