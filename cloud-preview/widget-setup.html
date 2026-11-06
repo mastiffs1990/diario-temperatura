@@ -45,7 +45,14 @@ button.secondary{background:#eef1f6;color:#29344a}button.danger{background:#fff0
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
 <script>
-const db=window.supabase.createClient("https://muuihmayqnvzugomfwlq.supabase.co","sb_publishable_QLIN1H0b8iNL7Rekw9lZHA_KayB6Mcd");
+const SUPABASE_URL="https://muuihmayqnvzugomfwlq.supabase.co";
+async function createDbClient(){
+ const page=await fetch("/index.html",{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error("Impossibile leggere la configurazione");return r.text()});
+ const match=page.match(/createClient\(\s*["']https:\/\/muuihmayqnvzugomfwlq\.supabase\.co["']\s*,\s*["'](sb_publishable_[A-Za-z0-9_-]+)["']/);
+ if(!match)throw new Error("Configurazione API non trovata");
+ return window.supabase.createClient(SUPABASE_URL,match[1]);
+}
+let db;
 const $=id=>document.getElementById(id);
 let session=null;
 function notice(el,msg,kind=""){el.textContent=msg;el.className="notice "+kind}
