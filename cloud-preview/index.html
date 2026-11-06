@@ -37,6 +37,12 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 .chart-stat small{color:#778197;font-size:11px}
 .chart-empty{padding:24px 12px;text-align:center;background:#f7f8fb;border-radius:12px;color:#778197;font-size:13px}
 @media(max-width:420px){.chart-stat{padding:9px 8px}.chart-stat strong{font-size:17px}.chart-stat small{font-size:10px}}
+.app-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 18px;position:sticky;top:0;z-index:5;background:#f5f6fa;padding:8px 0}
+.app-nav button{background:#e9edf4;color:#47536a;padding:12px 8px;font-size:13px}.app-nav button.active{background:#182033;color:#fff}
+.page-panel{min-width:0}.history-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-top:1px solid #edf0f4}
+.history-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.compare-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#778197;margin-top:8px}
+.compare-line{width:18px;height:3px;border-radius:4px;display:inline-block}
+@media(max-width:420px){.app-nav button{font-size:11px;padding:11px 4px}}
 .topline{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 .notice{padding:12px;border-radius:12px;background:#f0f5ff;color:#334a73;font-size:13px;margin:12px 0}
 .error{background:#fff0ef;color:#943b35}.success{background:#eff8f2;color:#286342}
@@ -53,19 +59,19 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 </section>
 <section id="app" class="hidden">
 <div class="card"><div class="topline"><div><div class="brand">Account</div><div id="userEmail" style="font-weight:650;margin-top:4px"></div></div><button id="signOut" class="secondary">Esci</button></div><div class="notice">Questa è una nuova app di test: non legge né modifica il localStorage della PWA attuale. Il porting dei dati sarà una fase separata, dopo backup e verifica.</div></div>
-<section class="card"><h2>Nuova misurazione</h2>
+<section class="card" id="measurementEntryCard"><h2>Nuova misurazione</h2>
 <div class="grid">
 <div class="field"><label for="temperature">Temperatura °C</label><input id="temperature" type="number" min="30" max="45" step=".1" placeholder="38.5"></div>
 <div class="field"><label for="measuredAt">Data e ora</label><input id="measuredAt" type="datetime-local"></div>
 <div class="field"><label for="medication">Farmaco</label><select id="medication"><option>Nessuno</option><option>Nurofen</option><option>Tachipirina</option><option>Antibiotico</option></select></div>
 <div class="field"><label for="note">Nota</label><input id="note" placeholder="Sintomi, osservazioni..."></div>
 </div><div class="actions"><button id="saveMeasurement">Salva misurazione</button></div><div id="saveMsg" class="notice hidden"></div></section>
-<section class="card"><h2>Porting dati dalla vecchia app</h2><p class="muted">Importa un backup JSON esportato dal browser. I dati già presenti non verranno sovrascritti e gli import ripetuti non creeranno duplicati.</p><div class="import-actions"><input id="legacyFile" type="file" accept="application/json,.json"><button id="importLegacy" disabled>Importa dati verificati</button></div><div id="importSummary" class="import-summary">Seleziona il backup JSON per controllare quante misurazioni e quanti episodi contiene.</div><div id="importMsg" class="notice hidden"></div></section>
-<section class="card"><div class="topline"><h2>Timer farmaci</h2><span class="tag">Dall'ultima assunzione</span></div><div id="medicationTimers" class="timer-grid"><div class="timer-box">Caricamento timer…</div></div></section>
+<section class="card" id="importCard"><h2>Importazione dati</h2><p class="muted">Importa un backup JSON esportato dal browser. I dati già presenti non verranno sovrascritti e gli import ripetuti non creeranno duplicati.</p><div class="import-actions"><input id="legacyFile" type="file" accept="application/json,.json"><button id="importLegacy" disabled>Importa dati verificati</button></div><div id="importSummary" class="import-summary">Seleziona il backup JSON per controllare quante misurazioni e quanti episodi contiene.</div><div id="importMsg" class="notice hidden"></div></section>
+<section class="card" id="timerCard"><div class="topline"><h2>Timer farmaci</h2><span class="tag">Dall'ultima assunzione</span></div><div id="medicationTimers" class="timer-grid"><div class="timer-box">Caricamento timer…</div></div></section>
 <section class="card" id="chartCard"><div class="topline"><h2>Andamento temperatura</h2><span class="tag" id="chartRange">Ultime misurazioni</span></div><div id="temperatureChart"></div></section>
-<section class="card"><div class="topline"><h2>Misurazioni recenti</h2><span id="count" class="tag">0 registrazioni</span></div><div id="measurements"><p class="muted">Accedi per caricare i dati.</p></div></section>
-<section class="card"><h2>Archivia episodio</h2><p class="muted">L'archiviazione crea un episodio storico e collega le misurazioni correnti senza cancellarle.</p><div class="field"><label for="episodeTitle">Titolo episodio</label><input id="episodeTitle" placeholder="Es. Febbre novembre 2026"></div><div class="field" style="margin-top:10px"><label for="episodeNote">Nota episodio</label><textarea id="episodeNote" placeholder="Annotazioni facoltative"></textarea></div><div class="actions"><button id="archive">Archivia misurazioni correnti</button></div></section>
-<section class="card"><h2>Archivio episodi</h2><div id="episodes"><p class="muted">Nessun episodio archiviato.</p></div></section>
+<section class="card" id="recentCard"><div class="topline"><h2>Misurazioni recenti</h2><span id="count" class="tag">0 registrazioni</span></div><div id="measurements"><p class="muted">Accedi per caricare i dati.</p></div></section>
+<section class="card" id="archiveCard"><h2>Archivia episodio</h2><p class="muted">L'archiviazione crea un episodio storico e collega le misurazioni correnti senza cancellarle.</p><div class="field"><label for="episodeTitle">Titolo episodio</label><input id="episodeTitle" placeholder="Es. Febbre novembre 2026"></div><div class="field" style="margin-top:10px"><label for="episodeNote">Nota episodio</label><textarea id="episodeNote" placeholder="Annotazioni facoltative"></textarea></div><div class="actions"><button id="archive">Archivia misurazioni correnti</button></div></section>
+<section class="card" id="episodesCard"><h2>Archivio episodi</h2><div id="episodes"><p class="muted">Nessun episodio archiviato.</p></div></section>
 </section>
 <footer class="muted" style="text-align:center;padding:16px">Preview tecnica · i dati inseriti qui sono dati di test, non ancora quelli della vecchia app.</footer>
 </main>
@@ -75,7 +81,7 @@ const SUPABASE_URL="https://muuihmayqnvzugomfwlq.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_QLIN1H0b8iNL7Rekwl9ZHA_KayB6Mcd";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let currentUser=null, measurements=[], episodes=[], medicationEvents=[];
+let currentUser=null, measurements=[], episodes=[], medicationEvents=[], selectedHistoryRows=[], selectedEpisode=null;
 let timerInterval=null;
 const show=(el,msg,kind="")=>{el.textContent=msg;el.className="notice "+kind};
 const isoNow=()=>{const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);return d.toISOString().slice(0,16)};
@@ -203,8 +209,56 @@ function render(){
  drawChart();renderMedicationTimers();
  $("count").textContent=measurements.length+" misurazioni attive";
  $("measurements").innerHTML=measurements.length?measurements.map(r=>'<div class="item"><div><div class="temp">'+Number(r.temperature).toFixed(1)+'°C</div><div class="muted">'+new Date(r.measured_at).toLocaleString("it-IT")+' · '+escapeHtml(r.note)+'</div></div><div style="text-align:right"><span class="tag">'+escapeHtml(r.medication)+'</span><div class="actions" style="justify-content:flex-end"><button class="secondary" data-edit="'+r.id+'">Modifica</button><button class="danger" data-delete="'+r.id+'">Elimina</button></div></div></div>').join(""):'<p class="muted">Nessuna misurazione attiva.</p>';
- $("episodes").innerHTML=episodes.length?episodes.map(e=>'<div class="item"><div><strong>'+escapeHtml(e.title)+'</strong><div class="muted">'+new Date(e.archived_at).toLocaleString("it-IT")+' · '+escapeHtml(e.note)+'</div></div><span class="tag">Archiviato</span></div>').join(""):'<p class="muted">Nessun episodio archiviato.</p>';
+ $("historyCount").textContent=episodes.length+" episodi";
+ $("historyEpisodes").innerHTML=episodes.length?episodes.map(e=>'<div class="history-row"><div><strong>'+escapeHtml(e.title)+'</strong><div class="muted">'+new Date(e.archived_at).toLocaleString("it-IT")+' · '+escapeHtml(e.note||"")+'</div></div><button class="secondary" data-open-episode="'+e.id+'">Apri</button></div>').join(""):'<p class="muted">Nessun episodio archiviato.</p>';
 }
+
+function setupNavigation(){
+ const current=$("page-current"),settings=$("page-settings");
+ ["measurementEntryCard","timerCard","chartCard","recentCard","archiveCard"].forEach(id=>current.appendChild($(id)));
+ settings.appendChild($("importCard"));
+ const key=document.createElement("section");key.className="card";
+ key.innerHTML='<h2>Widget e API key</h2><p class="muted">Gestisci la chiave di sola lettura del widget Scriptable. La chiave viene mostrata una sola volta quando la generi.</p><div class="actions"><button id="openWidgetSetup">Gestisci API key widget</button></div>';
+ settings.appendChild(key);
+ $("openWidgetSetup").onclick=()=>window.open("./widget-setup.html","_blank","noopener");
+ document.querySelectorAll(".app-nav button").forEach(btn=>btn.addEventListener("click",()=>{
+  const page=btn.dataset.page;
+  document.querySelectorAll(".app-nav button").forEach(b=>b.classList.toggle("active",b===btn));
+  ["current","history","settings"].forEach(k=>$("page-"+k).classList.toggle("hidden",k!==page));
+ }));
+ $("closeHistory").onclick=()=>{$("episodeDetailCard").classList.add("hidden");selectedEpisode=null;selectedHistoryRows=[]};
+ $("historyEpisodes").addEventListener("click",async ev=>{const b=ev.target.closest("[data-open-episode]");if(b)await openEpisode(b.dataset.openEpisode)});
+ $("compareEpisode").onclick=drawComparison;
+}
+async function openEpisode(id){
+ const episode=episodes.find(e=>e.id===id);if(!episode)return;
+ const {data,error}=await db.from("fever_measurements").select("*").eq("episode_id",id).order("measured_at",{ascending:true});
+ if(error){alert("Impossibile caricare l'episodio: "+error.message);return}
+ selectedEpisode=episode;selectedHistoryRows=data||[];
+ $("historyTitle").textContent=episode.title;
+ $("historyMeta").textContent=new Date(episode.archived_at).toLocaleString("it-IT")+" · "+selectedHistoryRows.length+" misurazioni"+(episode.note?" · "+episode.note:"");
+ $("episodeDetailCard").classList.remove("hidden");$("comparisonChart").classList.add("hidden");
+ drawRowsChart("historyChart",selectedHistoryRows);
+ $("historyRows").innerHTML=selectedHistoryRows.length?selectedHistoryRows.map(r=>'<div class="item"><div><div class="temp">'+Number(r.temperature).toFixed(1)+'°C</div><div class="muted">'+new Date(r.measured_at).toLocaleString("it-IT")+(r.note?' · '+escapeHtml(r.note):'')+'</div></div><span class="tag">'+escapeHtml(r.medication||"Nessuno")+'</span></div>').join(""):'<p class="muted">Nessuna misurazione in questo episodio.</p>';
+}
+function drawRowsChart(hostId,sourceRows){
+ const old=measurements;measurements=sourceRows;const host=$("temperatureChart");if(host)host.id="__tempChartOriginal";
+ const target=$(hostId);if(target){target.id="temperatureChart";drawChart();target.id=hostId}
+ const original=$("__tempChartOriginal");if(original)original.id="temperatureChart";measurements=old;
+}
+function drawComparison(){
+ if(!selectedHistoryRows.length||!measurements.length){alert("Servono misurazioni sia nell'episodio passato sia in quello attuale.");return}
+ const A=[...selectedHistoryRows].sort((a,b)=>new Date(a.measured_at)-new Date(b.measured_at)),B=[...measurements].sort((a,b)=>new Date(a.measured_at)-new Date(b.measured_at));
+ const all=[...A,...B],lo=Math.min(36.5,Math.floor(Math.min(...all.map(r=>Number(r.temperature)))*2)/2),hi=Math.max(40,Math.ceil(Math.max(...all.map(r=>Number(r.temperature)))*2)/2);
+ const duration=Math.max(1,...[A,B].flatMap(rows=>rows.map(r=>(new Date(r.measured_at)-new Date(rows[0].measured_at))/3600000)));
+ const W=720,H=300,L=52,R=18,T=20,Bt=44,pw=W-L-R,ph=H-T-Bt,x=v=>L+v/duration*pw,y=v=>T+(hi-v)/(hi-lo)*ph;
+ const path=rows=>rows.map((r,i)=>(i?"L ":"M ")+x((new Date(r.measured_at)-new Date(rows[0].measured_at))/3600000).toFixed(1)+" "+y(Number(r.temperature)).toFixed(1)).join(" ");
+ let grid="";for(let v=Math.ceil(lo*2)/2;v<=hi+.001;v+=.5)grid+='<line class="chart-grid" x1="'+L+'" y1="'+y(v)+'" x2="'+(W-R)+'" y2="'+y(v)+'"/><text class="chart-axis" x="'+(L-8)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v.toFixed(1)+'°</text>';
+ const labels=[0,Math.round(duration/3),Math.round(2*duration/3),Math.ceil(duration)].map(v=>'<text class="chart-axis" x="'+x(v)+'" y="'+(H-14)+'" text-anchor="middle">'+v+'h</text>').join("");
+ $("comparisonChart").innerHTML='<h2 style="margin-top:20px">Confronto degli andamenti</h2><p class="muted">Curve allineate dall’ora della prima misurazione di ciascun episodio (ora 0).</p><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Confronto tra episodio passato e attuale">'+grid+'<path d="'+path(A)+'" fill="none" stroke="#8b62c8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="'+path(B)+'" fill="none" stroke="#e05b50" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+labels+'</svg><div class="compare-legend"><span><i class="compare-line" style="background:#8b62c8"></i>'+escapeHtml(selectedEpisode.title)+'</span><span><i class="compare-line" style="background:#e05b50"></i>Episodio attuale</span></div>';
+ $("comparisonChart").classList.remove("hidden");
+}
+
 async function auth(action){
  const email=$("email").value.trim(),password=$("password").value;
  if(!email||!password){show($("authMsg"),"Inserisci email e password.","error");return}
@@ -243,6 +297,7 @@ $("archive").onclick=async()=>{
  $("episodeTitle").value="";$("episodeNote").value="";await refresh();alert("Episodio archiviato.");
 };
 db.auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null;boot()});
+setupNavigation();
 boot();
 if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(renderMedicationTimers,30000);
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
