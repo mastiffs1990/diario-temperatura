@@ -129,6 +129,7 @@ final class AppModel: ObservableObject {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
