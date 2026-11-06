@@ -3,6 +3,7 @@
 const API_URL = "https://muuihmayqnvzugomfwlq.supabase.co/functions/v1/temperature-widget";
 const APP_URL = "https://diario-temperatura-cloud.vercel.app/";
 const TOKEN = String(args.widgetParameter || "").trim();
+// Legacy anon key: public gateway key; widget token remains the actual user authentication.
 
 const widget = new ListWidget();
 widget.backgroundColor = new Color("#111827");
@@ -17,7 +18,7 @@ function text(parent, value, size, color, bold = false) {
   return t;
 }
 function elapsed(iso) {
-  if (!iso) return "—";
+  if (!iso || !Number.isFinite(new Date(iso).getTime())) return "—";
   const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
   const days = Math.floor(mins / 1440);
   const hours = Math.floor((mins % 1440) / 60);
@@ -27,7 +28,7 @@ function elapsed(iso) {
   return rest + " min";
 }
 function clock(iso) {
-  if (!iso) return "Nessuna registrazione";
+  if (!iso || !Number.isFinite(new Date(iso).getTime())) return "Nessuna registrazione";
   return new Date(iso).toLocaleString("it-IT", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
 }
 function timerRow(parent, name, iso, dot) {
@@ -41,9 +42,9 @@ function timerRow(parent, name, iso, dot) {
   label.textColor = new Color("#D1D5DB");
   label.font = Font.mediumSystemFont(10);
   row.addSpacer();
-  const value = row.addText(elapsed(iso));
+  const value = row.addText(iso && Number.isFinite(new Date(iso).getTime()) ? clock(iso) + " · " + elapsed(iso) : "—");
   value.textColor = new Color("#FFFFFF");
-  value.font = Font.semiboldSystemFont(11);
+  value.font = Font.semiboldSystemFont(10);
 }
 function errorWidget(message) {
   text(widget, "DIARIO TEMPERATURA", 10, "#9CA3AF", true);
