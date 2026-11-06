@@ -18,8 +18,11 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
-        run: xcodegen generate --spec ios/DiarioTemperatura/project.yml
+        working-directory: ios/DiarioTemperatura
+        run: xcodegen generate
       - name: Resolve Swift packages
-        run: xcodebuild -resolvePackageDependencies -project ios/DiarioTemperatura/DiarioTemperatura.xcodeproj -scheme DiarioTemperatura
+        working-directory: ios/DiarioTemperatura
+        run: xcodebuild -resolvePackageDependencies -project DiarioTemperatura.xcodeproj -scheme DiarioTemperatura
       - name: Build for iOS Simulator
-        run: xcodebuild -project ios/DiarioTemperatura/DiarioTemperatura.xcodeproj -scheme DiarioTemperatura -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+        working-directory: ios/DiarioTemperatura
+        run: xcodebuild -project DiarioTemperatura.xcodeproj -scheme DiarioTemperatura -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
