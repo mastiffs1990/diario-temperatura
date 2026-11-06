@@ -6,7 +6,7 @@ options:
 packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
-    from: 2.0.0
+    exactVersion: 2.55.6
 targets:
   DiarioTemperatura:
     type: application
@@ -38,7 +38,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.diariotemperatura.app
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_KEY_CFBundleDisplayName: "Diario Temperatura"
