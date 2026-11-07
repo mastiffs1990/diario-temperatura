@@ -47,6 +47,21 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 .notice{padding:12px;border-radius:12px;background:#f0f5ff;color:#334a73;font-size:13px;margin:12px 0}
 .error{background:#fff0ef;color:#943b35}.success{background:#eff8f2;color:#286342}
 @media(max-width:560px){.grid{grid-template-columns:1fr}main{margin-top:12px}.card{padding:16px}}
+
+.chart-zoom{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:10px 0 14px}.chart-zoom span{font-size:12px;color:#778197;margin-right:4px}.chart-zoom button{padding:8px 12px;font-size:12px}.chart-zoom button.active{background:#182033;color:#fff}
+.chart-time-grid{stroke-dasharray:2 5;opacity:.7}.chart-wrap{min-height:230px}.chart-svg{width:100%;height:clamp(280px,42vw,430px);touch-action:pan-y}
+#chartCard.chart-expanded{position:fixed;z-index:1000;inset:0;margin:0;border-radius:0;width:100vw;height:100vh;height:100dvh;overflow:auto;padding:calc(env(safe-area-inset-top) + 12px) max(12px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 12px) max(12px,env(safe-area-inset-left));display:flex;flex-direction:column}
+#chartCard.chart-expanded .chart-wrap{flex:1;min-height:220px;display:flex}#chartCard.chart-expanded .chart-svg{height:100%;min-height:220px;flex:1}
+#chartCard.chart-expanded .chart-stats{margin:6px 0}#chartCard.chart-expanded .chart-stat{padding:7px 10px}
+#chartCard.chart-expanded .chart-stat strong{font-size:17px}
+@media(orientation:landscape) and (max-height:600px){
+ #chartCard.chart-landscape{position:fixed;z-index:1000;inset:0;margin:0;border:0;border-radius:0;width:100vw;height:100vh;height:100dvh;overflow:auto;padding:calc(env(safe-area-inset-top) + 8px) max(12px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 8px) max(12px,env(safe-area-inset-left));display:flex;flex-direction:column}
+ #chartCard.chart-landscape .chart-wrap{flex:1;min-height:0;display:flex}
+ #chartCard.chart-landscape .chart-svg{height:100%;min-height:0;flex:1}
+ #chartCard.chart-landscape .chart-stats{margin:4px 0}#chartCard.chart-landscape .chart-stat{padding:5px 9px}
+ #chartCard.chart-landscape .chart-stat strong{font-size:15px}
+ #chartCard.chart-landscape .chart-zoom{margin:5px 0 8px}
+}
 </style></head>
 <body>
 <header><div class="brand">Diario temperatura · versione cloud</div><h1>Un diario, sempre sincronizzato.</h1><div class="muted">Ambiente separato di prova · i dati della vecchia app non vengono toccati.</div></header>
@@ -78,7 +93,7 @@ button:disabled{opacity:.5;cursor:wait}.hidden{display:none!important}
 <section class="card" id="importCard"><h2>Importazione dati</h2><p class="muted">Importa un backup JSON esportato dal browser. I dati già presenti non verranno sovrascritti e gli import ripetuti non creeranno duplicati.</p><div class="import-actions"><input id="legacyFile" type="file" accept="application/json,.json"><button id="importLegacy" disabled>Importa dati verificati</button></div><div id="importSummary" class="import-summary">Seleziona il backup JSON per controllare quante misurazioni e quanti episodi contiene.</div><div id="importMsg" class="notice hidden"></div></section>
 <section class="card" id="timerCard"><div class="topline"><h2>Timer farmaci</h2><span class="tag">Dall'ultima assunzione</span></div><div id="medicationTimers" class="timer-grid"><div class="timer-box">Caricamento timer…</div></div></section>
 <section class="card" id="reportCard"><div class="topline"><h2>Report giornaliero</h2><span class="tag" id="reportDates">In attesa di dati</span></div><div id="dailyReport"><p class="muted">Il report si aggiornerà automaticamente con le nuove misurazioni.</p></div></section>
-<section class="card" id="chartCard"><div class="topline"><h2>Andamento temperatura</h2><span class="tag" id="chartRange">Ultime misurazioni</span></div><div id="temperatureChart"></div></section>
+<section class="card" id="chartCard"><div class="topline"><h2>Andamento temperatura</h2><button id="chartExpand" class="secondary" type="button">Espandi grafico</button></div><div class="chart-zoom" id="chartZoomControls" aria-label="Intervallo del grafico"><span>Zoom temporale</span><button class="secondary" data-chart-hours="6">6h</button><button class="secondary" data-chart-hours="12">12h</button><button class="secondary" data-chart-hours="24">24h</button><button class="secondary" data-chart-hours="48">48h</button><button class="secondary" data-chart-hours="0">Tutto</button></div><div id="temperatureChart"></div></section>
 <section class="card" id="recentCard"><div class="topline"><h2>Misurazioni recenti</h2><span id="count" class="tag">0 registrazioni</span></div><div id="measurements"><p class="muted">Accedi per caricare i dati.</p></div></section>
 <section class="card" id="archiveCard"><h2>Archivia episodio</h2><p class="muted">L'archiviazione crea un episodio storico e collega le misurazioni correnti senza cancellarle.</p><div class="field"><label for="episodeTitle">Titolo episodio</label><input id="episodeTitle" placeholder="Es. Febbre novembre 2026"></div><div class="field" style="margin-top:10px"><label for="episodeNote">Nota episodio</label><textarea id="episodeNote" placeholder="Annotazioni facoltative"></textarea></div><div class="actions"><button id="archive">Archivia misurazioni correnti</button></div></section>
 <section class="card" id="episodesCard"><h2>Archivio episodi</h2><div id="episodes"><p class="muted">Nessun episodio archiviato.</p></div></section>
@@ -92,7 +107,7 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable_QLIN1H0b8iNL7Rekwl9ZHA_KayB6Mcd";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
 let currentUser=null, measurements=[], episodes=[], medicationEvents=[], selectedHistoryRows=[], selectedEpisode=null;
-let timerInterval=null;
+let timerInterval=null,chartWindowHours=24;
 const show=(el,msg,kind="")=>{el.textContent=msg;el.className="notice "+kind};
 const isoNow=()=>{const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);return d.toISOString().slice(0,16)};
 $("measuredAt").value=isoNow();
@@ -117,21 +132,31 @@ function drawMedicationMarker(name,cx,cy){
 }
 function drawChart(){
  const host=$("temperatureChart");if(!host)return;
- const rows=[...measurements].filter(r=>Number.isFinite(Number(r.temperature))&&r.measured_at).sort((a,b)=>new Date(a.measured_at)-new Date(b.measured_at));
- if(!rows.length){host.innerHTML='<div class="chart-empty">Nessuna misurazione da visualizzare. Aggiungi una temperatura per iniziare il grafico.</div>';return}
+ const allRows=[...measurements].filter(r=>Number.isFinite(Number(r.temperature))&&r.measured_at).sort((a,b)=>new Date(a.measured_at)-new Date(b.measured_at));
+ if(!allRows.length){host.innerHTML='<div class="chart-empty">Nessuna misurazione da visualizzare. Aggiungi una temperatura per iniziare il grafico.</div>';return}
+ const endMs=new Date(allRows[allRows.length-1].measured_at).getTime();
+ const startMs=chartWindowHours===0?new Date(allRows[0].measured_at).getTime():Math.max(new Date(allRows[0].measured_at).getTime(),endMs-chartWindowHours*3600000);
+ const rows=allRows.filter(r=>new Date(r.measured_at).getTime()>=startMs);
  const vals=rows.map(r=>Number(r.temperature));let lo=Math.min(36.5,Math.floor(Math.min(...vals)*2)/2),hi=Math.max(40,Math.ceil(Math.max(...vals)*2)/2);if(hi-lo<1)hi=lo+1;
- const W=720,H=300,L=58,R=18,T=22,B=48,pw=W-L-R,ph=H-T-B;
- const x=i=>L+(rows.length===1?pw/2:i/(rows.length-1)*pw),y=v=>T+(hi-v)/(hi-lo)*ph;
+ const W=900,H=390,L=62,R=22,T=24,B=58,pw=W-L-R,ph=H-T-B;
+ const xTime=ms=>L+(endMs===startMs?pw/2:(ms-startMs)/(endMs-startMs)*pw),y=v=>T+(hi-v)/(hi-lo)*ph;
  const ticks=[];for(let v=Math.ceil(lo*2)/2;v<=hi+.001;v+=.5)ticks.push(Number(v.toFixed(1)));
  const grid=ticks.map(v=>'<line class="chart-grid" x1="'+L+'" y1="'+y(v)+'" x2="'+(W-R)+'" y2="'+y(v)+'"/><text class="chart-axis" x="'+(L-10)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v.toFixed(1)+'°</text>').join("");
- const pts=rows.map((r,i)=>({x:x(i),y:y(Number(r.temperature)),row:r}));let linePath="M "+pts[0].x+" "+pts[0].y;
- for(let i=0;i<pts.length-1;i++){const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];const c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6,c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;linePath+=" C "+c1x+" "+c1y+" "+c2x+" "+c2y+" "+p2.x+" "+p2.y}
+ const spanHours=Math.max(1,(endMs-startMs)/3600000),steps=[1,2,3,4,6,8,12,24,48,72,168],step=steps.find(v=>spanHours/v<=6)||168;
+ const firstTick=Math.ceil(startMs/(step*3600000))*(step*3600000),timeTicks=[];
+ for(let t=firstTick;t<=endMs;t+=step*3600000)timeTicks.push(t);
+ if(!timeTicks.length||timeTicks[0]>startMs+step*1800000)timeTicks.unshift(startMs);
+ if(timeTicks[timeTicks.length-1]<endMs-step*1800000)timeTicks.push(endMs);
+ const timeLabels=timeTicks.map((t,i)=>{const d=new Date(t),label=spanHours>36?d.toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"}):d.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});const xx=xTime(t);return '<line class="chart-grid chart-time-grid" x1="'+xx+'" y1="'+T+'" x2="'+xx+'" y2="'+(T+ph)+'"/><text class="chart-axis" x="'+xx+'" y="'+(H-18)+'" text-anchor="'+(i===0?"start":i===timeTicks.length-1?"end":"middle")+'">'+label+'</text>'}).join("");
+ const pts=rows.map(r=>({x:xTime(new Date(r.measured_at).getTime()),y:y(Number(r.temperature)),row:r}));
+ let linePath="M "+pts[0].x+" "+pts[0].y;
+ for(let i=0;i<pts.length-1;i++){const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)],c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6,c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;linePath+=" C "+c1x+" "+c1y+" "+c2x+" "+c2y+" "+p2.x+" "+p2.y}
  const areaPath=linePath+" L "+(W-R)+" "+(T+ph)+" L "+L+" "+(T+ph)+" Z";
- const dots=pts.map(p=>'<circle class="chart-dot" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(rows.length>100?2.2:3.5)+'"><title>'+Number(p.row.temperature).toFixed(1)+'°C · '+new Date(p.row.measured_at).toLocaleString("it-IT")+'</title></circle>'+drawMedicationMarker(p.row.medication,p.x.toFixed(1),p.y.toFixed(1))).join("");
- const indices=[...new Set([0,Math.floor((rows.length-1)/3),Math.floor(2*(rows.length-1)/3),rows.length-1])];
- const labels=indices.map(i=>'<text class="chart-axis" x="'+x(i)+'" y="'+(H-16)+'" text-anchor="'+(i===0?"start":i===rows.length-1?"end":"middle")+'">'+new Date(rows[i].measured_at).toLocaleDateString("it-IT",{day:"2-digit",month:"2-digit"})+'</text>').join("");
+ const dots=pts.map(p=>'<circle class="chart-dot" cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(rows.length>100?2.8:4.5)+'"><title>'+Number(p.row.temperature).toFixed(1)+'°C · '+new Date(p.row.measured_at).toLocaleString("it-IT")+'</title></circle>'+drawMedicationMarker(p.row.medication,p.x.toFixed(1),p.y.toFixed(1))).join("");
  const latest=rows[rows.length-1],legend='<div class="chart-legend"><span><i class="chart-key"></i>Temperatura</span><span><i class="med-marker med-nurofen"></i>Nurofen</span><span><i class="med-marker med-tachipirina"></i>Tachipirina</span><span><i class="med-marker med-antibiotico"></i>Antibiotico</span></div>';
- host.innerHTML='<div class="chart-stats"><div class="chart-stat"><strong>'+Number(latest.temperature).toFixed(1)+'°C</strong><small>Ultima rilevazione</small></div><div class="chart-stat"><strong>'+Math.max(...vals).toFixed(1)+'°C</strong><small>Massima</small></div><div class="chart-stat"><strong>'+Math.min(...vals).toFixed(1)+'°C</strong><small>Minima</small></div></div><div class="chart-wrap"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Andamento delle temperature e farmaci assunti"><defs><linearGradient id="tempFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#e05b50" stop-opacity=".18"/><stop offset="100%" stop-color="#e05b50" stop-opacity="0"/></linearGradient></defs>'+grid+'<path class="chart-area" d="'+areaPath+'"/><path class="chart-line" d="'+linePath+'"/>'+dots+labels+'</svg></div>'+legend+'<div class="muted" style="margin-top:8px">'+rows.length+' rilevazioni · dal '+new Date(rows[0].measured_at).toLocaleDateString("it-IT")+' al '+new Date(latest.measured_at).toLocaleDateString("it-IT")+'</div>';
+ const rangeLabel=chartWindowHours===0?"Tutto":chartWindowHours+" ore";
+ const controls=document.querySelectorAll("[data-chart-hours]");controls.forEach(b=>b.classList.toggle("active",Number(b.dataset.chartHours)===chartWindowHours));
+ host.innerHTML='<div class="chart-stats"><div class="chart-stat"><strong>'+Number(latest.temperature).toFixed(1)+'°C</strong><small>Ultima rilevazione</small></div><div class="chart-stat"><strong>'+Math.max(...vals).toFixed(1)+'°C</strong><small>Massima nel periodo</small></div><div class="chart-stat"><strong>'+Math.min(...vals).toFixed(1)+'°C</strong><small>Minima nel periodo</small></div></div><div class="chart-wrap"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Andamento della temperatura nel tempo con orari delle misurazioni"><defs><linearGradient id="tempFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#e05b50" stop-opacity=".18"/><stop offset="100%" stop-color="#e05b50" stop-opacity="0"/></linearGradient></defs>'+grid+timeLabels+'<path class="chart-area" d="'+areaPath+'"/><path class="chart-line" d="'+linePath+'"/>'+dots+'</svg></div>'+legend+'<div class="muted" style="margin-top:8px">'+rows.length+' rilevazioni visualizzate su '+allRows.length+' · '+new Date(rows[0].measured_at).toLocaleString("it-IT")+' → '+new Date(latest.measured_at).toLocaleString("it-IT")+' · intervallo: '+rangeLabel+'</div>';
 }
 function formatElapsed(ms){if(ms<0)ms=0;const total=Math.floor(ms/60000),days=Math.floor(total/1440),hours=Math.floor((total%1440)/60),minutes=total%60;return days>0?days+"g "+hours+"h "+minutes+"m":hours>0?hours+"h "+minutes+"m":minutes+" min"}
 
@@ -189,7 +214,7 @@ function renderDailyReport(){
 
 function renderMedicationTimers(){
  const host=$("medicationTimers");if(!host)return;const now=Date.now(),configs=[{name:"Nurofen",cls:"nurofen"},{name:"Tachipirina",cls:"tachipirina"},{name:"Antibiotico",cls:"antibiotico"}];
- host.innerHTML=configs.map(c=>{const last=medicationEvents.find(x=>x.medication===c.name),when=last?new Date(last.measured_at):null;return '<div class="timer-box"><div class="timer-head"><i class="med-marker med-'+c.cls+'"></i>'+c.name+'</div><div class="timer-value">'+(when?formatElapsed(now-when.getTime()):"—")+'</div><div class="timer-detail">'+(when?"Ultima assunzione: "+when.toLocaleString("it-IT"):"Nessuna assunzione registrata")+'</div></div>'}).join("");
+ host.innerHTML=configs.map(c=>{const last=medicationEvents.find(x=>x.medication===c.name),when=last?new Date(last.measured_at):null;let detail=when?"Ultima assunzione: "+when.toLocaleString("it-IT"):"Nessuna assunzione registrata";if(c.name==="Antibiotico"){const doses=measurements.filter(r=>r.medication==="Antibiotico").length,days=Math.floor(doses/2),left=doses%2;detail+=" · Conteggio terapia: "+days+" "+(days===1?"giorno completato":"giorni completati")+" · "+(left?"1 dose verso il prossimo giorno":"0 dosi residue nel conteggio");}return '<div class="timer-box"><div class="timer-head"><i class="med-marker med-'+c.cls+'"></i>'+c.name+'</div><div class="timer-value">'+(when?formatElapsed(now-when.getTime()):"—")+'</div><div class="timer-detail">'+detail+'</div></div>'}).join("");
 }
 let legacyImportData=null;
 function legacyMedication(value){
@@ -361,6 +386,13 @@ $("archive").onclick=async()=>{
  $("episodeTitle").value="";$("episodeNote").value="";await refresh();alert("Episodio archiviato.");
 };
 db.auth.onAuthStateChange((_event,session)=>{currentUser=session?.user||null;boot()});
+
+$("chartZoomControls").addEventListener("click",ev=>{const b=ev.target.closest("[data-chart-hours]");if(!b)return;chartWindowHours=Number(b.dataset.chartHours);drawChart()});
+$("chartExpand").onclick=()=>{$("chartCard").classList.toggle("chart-expanded");$("chartExpand").textContent=$("chartCard").classList.contains("chart-expanded")?"Riduci grafico":"Espandi grafico"};
+const chartOrientation=window.matchMedia("(orientation: landscape) and (max-height: 600px)");
+const syncChartOrientation=()=>{$("chartCard").classList.toggle("chart-landscape",chartOrientation.matches);if(chartOrientation.matches)$("chartExpand").textContent="Vista landscape";else $("chartExpand").textContent=$("chartCard").classList.contains("chart-expanded")?"Riduci grafico":"Espandi grafico"};
+chartOrientation.addEventListener?.("change",syncChartOrientation);syncChartOrientation();
+
 setupNavigation();
 boot();
 if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(renderMedicationTimers,30000);
