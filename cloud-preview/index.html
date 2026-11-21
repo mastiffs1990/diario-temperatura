@@ -317,6 +317,17 @@ function setupNavigation(){
  }));
  $("closeHistory").onclick=()=>{$("episodeDetailCard").classList.add("hidden");selectedEpisode=null;selectedHistoryRows=[]};
  $("historyEpisodes").addEventListener("click",async ev=>{const b=ev.target.closest("[data-open-episode]");if(b)await openEpisode(b.dataset.openEpisode)});
+ $("historyRows").addEventListener("click",async ev=>{
+  const b=ev.target.closest("[data-history-delete]");if(!b||!selectedEpisode)return;
+  const measurementId=b.dataset.historyDelete,episodeId=selectedEpisode.id;
+  if(!selectedHistoryRows.some(r=>r.id===measurementId))return;
+  if(!confirm("Eliminare definitivamente questa misurazione dall’episodio archiviato?"))return;
+  b.disabled=true;
+  const {data,error}=await db.from("fever_measurements").delete().eq("id",measurementId).eq("episode_id",episodeId).select("id").maybeSingle();
+  if(error){alert("Non sono riuscito a eliminare la misurazione: "+error.message);b.disabled=false;return}
+  if(!data){alert("La misurazione non è stata trovata o non appartiene a questo episodio.");b.disabled=false;return}
+  await openEpisode(episodeId);
+ });
  $("compareEpisode").onclick=drawComparison;
 }
 async function openEpisode(id){
@@ -328,7 +339,7 @@ async function openEpisode(id){
  $("historyMeta").textContent=new Date(episode.archived_at).toLocaleString("it-IT")+" · "+selectedHistoryRows.length+" misurazioni"+(episode.note?" · "+episode.note:"");
  $("episodeDetailCard").classList.remove("hidden");$("comparisonChart").classList.add("hidden");
  drawRowsChart("historyChart",selectedHistoryRows);
- $("historyRows").innerHTML=selectedHistoryRows.length?selectedHistoryRows.map(r=>'<div class="item"><div><div class="temp">'+Number(r.temperature).toFixed(1)+'°C</div><div class="muted">'+new Date(r.measured_at).toLocaleString("it-IT")+(r.note?' · '+escapeHtml(r.note):'')+'</div></div><span class="tag">'+escapeHtml(r.medication||"Nessuno")+'</span></div>').join(""):'<p class="muted">Nessuna misurazione in questo episodio.</p>';
+ $("historyRows").innerHTML=selectedHistoryRows.length?selectedHistoryRows.map(r=>'<div class="item"><div><div class="temp">'+Number(r.temperature).toFixed(1)+'°C</div><div class="muted">'+new Date(r.measured_at).toLocaleString("it-IT")+(r.note?' · '+escapeHtml(r.note):'')+'</div></div><div style="text-align:right"><span class="tag">'+escapeHtml(r.medication||"Nessuno")+'</span><div class="actions" style="justify-content:flex-end;margin-top:7px"><button class="danger" data-history-delete="'+r.id+'">Elimina</button></div></div></div>').join(""):'<p class="muted">Nessuna misurazione in questo episodio.</p>';
 }
 function drawRowsChart(hostId,sourceRows){
  const old=measurements;measurements=sourceRows;const host=$("temperatureChart");if(host)host.id="__tempChartOriginal";
